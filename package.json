@@ -1,0 +1,23 @@
+{
+  "name": "my-pokebot",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "dependencies": {
+    "axios": "^1.10.0",
+    "discord.js": "^14.21.0",
+    "dotenv": "^17.2.0",
+    "knex": "^3.1.0",
+    "node-cron": "^4.2.0",
+    "node-fetch": "^2.7.0",
+    "pg": "^8.16.3",
+    "sqlite3": "^5.1.7",
+    "uuid": "^11.1.0"
+  }
+}
