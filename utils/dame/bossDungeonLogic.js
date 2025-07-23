@@ -8,7 +8,7 @@ const { simulateBossBattle } = require('./battleSimulation');
 const { getTypeEffectiveness } = require('./battleCalculations'); 
 
 const BOSS_DUNGEON_COOLDOWN_HOURS = 8;
-const MIN_POKEMON_LEVEL_FOR_BOSS = 10;
+const MIN_POKEMON_LEVEL_FOR_BOSS = 20;
 
 /**
  * Định dạng các sự kiện trận đấu thành chuỗi log.
@@ -304,7 +304,7 @@ async function handleBossDungeon(message, client, db) {
         if (canGetReward) { // ĐÃ SỬA: Chỉ kiểm tra cooldown, không còn điều kiện thắng trận
             const randomReward = await getRandomRewardItem(db);
             if (randomReward) {
-                const rewardQuantity = Math.floor(Math.random() * 3) + 1; 
+                const rewardQuantity = 1; 
                 await addOrUpdateUserItem(userId, randomReward.item_id, rewardQuantity, db);
                 rewardMessage = `Bạn đã nhận được **${rewardQuantity}x ${randomReward.name}**!`;
 

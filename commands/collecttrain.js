@@ -10,7 +10,7 @@ const {
     checkAndLevelUpPokemon
 } = require('../utils/core/pokemonLevelingUtils');
 
-const POKECOINS_PER_MINUTE_TRAINING = 50;
+const POKECOINS_PER_MINUTE_TRAINING = 35;
 
 module.exports = {
     name: 'collecttrain',

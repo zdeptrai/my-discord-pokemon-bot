@@ -2,7 +2,7 @@
 const { EmbedBuilder } = require('discord.js');
 
 const CURRENCY_NAME = 'PokeCoin'; // Đơn vị tiền tệ của bạn
-const NICKNAME_COST = 15000; // Chi phí để đổi nickname (50 PokéCoin)
+const NICKNAME_COST = 100000; // Chi phí để đổi nickname (50 PokéCoin)
 
 module.exports = {
     name: 'nickname',

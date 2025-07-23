@@ -6,7 +6,7 @@ const { sendOwnerDM } = require('../utils/errors/errorReporter'); // Import send
 
 // Collection để lưu trữ cooldown cho các tương tác bắt Pokémon
 const catchCooldowns = new Collection();
-const DEFAULT_CATCH_COOLDOWN_SECONDS = 15; // Cooldown mặc định cho mỗi lần thử bắt (15 giây)
+const DEFAULT_CATCH_COOLDOWN_SECONDS = 60; // Cooldown mặc định cho mỗi lần thử bắt (15 giây)
 
 // Hàm phụ trợ: Lấy thông tin Pokémon của người dùng
 async function getUserPokemon(db, userId, pokemonInstanceId) {
