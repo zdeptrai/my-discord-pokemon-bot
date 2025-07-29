@@ -1,5 +1,69 @@
 // commands/learnskill.js
-const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, MessageFlags } = require('discord.js'); // Thêm MessageFlags
+const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, MessageFlags } = require('discord.js');
+const { sendOwnerDM } = require('../utils/errors/errorReporter'); // Import sendOwnerDM
+
+const MAX_SKILLS = 4; // Giới hạn số kỹ năng Pokémon có thể học
+const MESSAGE_LIFETIME = 60000; // Thời gian tồn tại của collector (60 giây)
+
+/**
+ * Gửi tin nhắn phản hồi cho một lệnh tiền tố (không thể là ephemeral).
+ * @param {Message} message Đối tượng tin nhắn gốc của lệnh.
+ * @param {string} content Nội dung tin nhắn.
+ * @param {string} logContext Ngữ cảnh log lỗi.
+ */
+async function sendPrefixedCommandReply(message, content, logContext) {
+    try {
+        await message.channel.send(content);
+    } catch (e) {
+        console.error(`[LEARNSKILL_ERROR] Lỗi gửi tin nhắn phản hồi lệnh tiền tố (${logContext}) cho ${message.author.tag}:`, e);
+        sendOwnerDM(message.client, `[Lỗi Learnskill] Lỗi gửi tin nhắn phản hồi lệnh tiền tố (${logContext}) cho ${message.author.tag}.`, e);
+    }
+}
+
+/**
+ * Gửi tin nhắn phản hồi cho một Interaction (có thể là ephemeral).
+ * @param {Interaction} interaction Đối tượng tương tác.
+ * @param {string} content Nội dung tin nhắn.
+ * @param {boolean} [ephemeral=false] Có phải là tin nhắn ephemeral không.
+ * @param {string} logContext Ngữ cảnh log lỗi.
+ */
+async function sendInteractionReply(interaction, content, ephemeral = false, logContext) {
+    try {
+        if (interaction.deferred || interaction.replied) {
+            await interaction.followUp({ content, flags: ephemeral ? MessageFlags.Ephemeral : 0 });
+        } else {
+            await interaction.reply({ content, flags: ephemeral ? MessageFlags.Ephemeral : 0 });
+        }
+    } catch (e) {
+        console.error(`[LEARNSKILL_ERROR] Lỗi gửi tin nhắn tương tác (${logContext}) cho ${interaction.user.tag}:`, e);
+        sendOwnerDM(interaction.client, `[Lỗi Learnskill] Lỗi gửi tin nhắn tương tác (${logContext}) cho ${interaction.user.tag}.`, e);
+    }
+}
+
+/**
+ * Chỉnh sửa tin nhắn và báo cáo lỗi nếu không thành công (bao gồm Unknown Message).
+ * @param {Message} message Đối tượng tin nhắn cần chỉnh sửa.
+ * @param {object} options Tùy chọn chỉnh sửa tin nhắn.
+ * @param {string} logContext Ngữ cảnh log lỗi.
+ */
+async function editMessageSafe(message, options, logContext) {
+    try {
+        // Fetch lại tin nhắn để đảm bảo nó vẫn tồn tại và có thể chỉnh sửa
+        const fetchedMessage = await message.channel.messages.fetch(message.id).catch(() => null);
+        if (fetchedMessage && fetchedMessage.editable) {
+            await fetchedMessage.edit(options);
+        } else {
+            console.warn(`[LEARNSKILL_WARN] Tin nhắn không còn tồn tại hoặc không thể chỉnh sửa (${logContext}).`);
+        }
+    } catch (e) {
+        if (e.code === 10008) { // Unknown Message
+            console.warn(`[LEARNSKILL_WARN] Tin nhắn đã bị xóa, không thể chỉnh sửa (${logContext}).`);
+        } else {
+            console.error(`[LEARNSKILL_ERROR] Lỗi chỉnh sửa tin nhắn (${logContext}):`, e);
+            sendOwnerDM(message.client, `[Lỗi Learnskill] Lỗi chỉnh sửa tin nhắn (${logContext}) trên kênh ${message.channel.id}.`, e);
+        }
+    }
+}
 
 module.exports = {
     name: 'learnskill',
@@ -9,21 +73,11 @@ module.exports = {
     cooldown: 5,
 
     async execute(message, args, client, db) {
-        // KHÔNG XÓA TIN NHẮN Ở ĐÂY NỮA, HÃY ĐỂ index.js XÓA
-        // if (message.deletable) {
-        //     message.delete().catch(e => console.error("Could not delete user command message:", e));
-        // }
-
         const userId = message.author.id;
-        const MAX_SKILLS = 4; // Giới hạn số kỹ năng Pokémon có thể học
         const prefix = client.config.PREFIX; // Lấy prefix để sử dụng trong cú pháp
 
         if (args.length < 2 || args.length > 3) {
-            // Sử dụng message.channel.send thay vì message.reply, và dùng ephemeral
-            return message.channel.send({
-                content: `<@${userId}> Sử dụng đúng cú pháp: \`${prefix}learnskill <ID Pokémon của bạn> <ID kỹ năng> [Vị trí ô skill muốn thay thế (1-4)]\``,
-                flags: MessageFlags.Ephemeral
-            });
+            return sendPrefixedCommandReply(message, `<@${userId}> Sử dụng đúng cú pháp: \`${prefix}learnskill <ID Pokémon của bạn> <ID kỹ năng> [Vị trí ô skill muốn thay thế (1-4)]\``, 'learnskill_syntax_error');
         }
 
         const userPokemonId = parseInt(args[0]);
@@ -31,18 +85,10 @@ module.exports = {
         const desiredSlot = args[2] ? parseInt(args[2]) : null;
 
         if (isNaN(userPokemonId) || isNaN(skillIdToLearn)) {
-            // Sử dụng message.channel.send và ephemeral
-            return message.channel.send({
-                content: `<@${userId}> ID Pokémon và ID kỹ năng phải là số hợp lệ.`,
-                flags: MessageFlags.Ephemeral
-            });
+            return sendPrefixedCommandReply(message, `<@${userId}> ID Pokémon và ID kỹ năng phải là số hợp lệ.`, 'learnskill_invalid_ids');
         }
         if (desiredSlot !== null && (isNaN(desiredSlot) || desiredSlot < 1 || desiredSlot > MAX_SKILLS)) {
-            // Sử dụng message.channel.send và ephemeral
-            return message.channel.send({
-                content: `<@${userId}> Vị trí ô skill phải là một số từ 1 đến ${MAX_SKILLS}.`,
-                flags: MessageFlags.Ephemeral
-            });
+            return sendPrefixedCommandReply(message, `<@${userId}> Vị trí ô skill phải là một số từ 1 đến ${MAX_SKILLS}.`, 'learnskill_invalid_slot');
         }
 
         try {
@@ -63,11 +109,7 @@ module.exports = {
                 .first();
 
             if (!userPokemon) {
-                // Sử dụng message.channel.send và ephemeral
-                return message.channel.send({
-                    content: `<@${userId}> Bạn không sở hữu Pokémon với ID ${userPokemonId}.`,
-                    flags: MessageFlags.Ephemeral
-                });
+                return sendPrefixedCommandReply(message, `<@${userId}> Bạn không sở hữu Pokémon với ID ${userPokemonId}.`, 'learnskill_pokemon_not_found');
             }
 
             const pokemonDisplayName = userPokemon.nickname || userPokemon.pokemon_base_name;
@@ -79,7 +121,8 @@ module.exports = {
                     learnedSkills = [];
                 }
             } catch (parseError) {
-                console.error(`Lỗi phân tích learned_skill_ids cho Pokémon ${userPokemon.id}:`, parseError);
+                console.error(`[LEARNSKILL_ERROR] Lỗi phân tích learned_skill_ids cho Pokémon ${userPokemon.id}:`, parseError);
+                sendOwnerDM(client, `[Lỗi Learnskill] Lỗi phân tích learned_skill_ids cho Pokémon ${userPokemon.id} của ${userId}.`, parseError);
                 learnedSkills = [];
             }
 
@@ -88,11 +131,7 @@ module.exports = {
                 .first();
 
             if (!skillDetails) {
-                // Sử dụng message.channel.send và ephemeral
-                return message.channel.send({
-                    content: `<@${userId}> Không tìm thấy kỹ năng với ID ${skillIdToLearn}.`,
-                    flags: MessageFlags.Ephemeral
-                });
+                return sendPrefixedCommandReply(message, `<@${userId}> Không tìm thấy kỹ năng với ID ${skillIdToLearn}.`, 'learnskill_skill_not_found');
             }
 
             const canLearnSkill = await db('pokemon_skills')
@@ -104,19 +143,11 @@ module.exports = {
                 .first();
 
             if (!canLearnSkill) {
-                // Sử dụng message.channel.send và ephemeral
-                return message.channel.send({
-                    content: `<@${userId}> **${pokemonDisplayName}** (ID: ${userPokemon.id}, Lv ${userPokemon.level}) không thể học kỹ năng **${skillDetails.name}** (ID: ${skillDetails.skill_id}) ở cấp độ hiện tại.`,
-                    flags: MessageFlags.Ephemeral
-                });
+                return sendPrefixedCommandReply(message, `<@${userId}> **${pokemonDisplayName}** (ID: ${userPokemon.id}, Lv ${userPokemon.level}) không thể học kỹ năng **${skillDetails.name}** (ID: ${skillDetails.skill_id}) ở cấp độ hiện tại.`, 'learnskill_cannot_learn');
             }
 
             if (learnedSkills.includes(skillIdToLearn)) {
-                // Sử dụng message.channel.send và ephemeral
-                return message.channel.send({
-                    content: `<@${userId}> **${pokemonDisplayName}** (ID: ${userPokemon.id}) đã học kỹ năng **${skillDetails.name}** rồi.`,
-                    flags: MessageFlags.Ephemeral
-                });
+                return sendPrefixedCommandReply(message, `<@${userId}> **${pokemonDisplayName}** (ID: ${userPokemon.id}) đã học kỹ năng **${skillDetails.name}** rồi.`, 'learnskill_already_learned');
             }
 
             // --- Logic chính để học kỹ năng ---
@@ -137,8 +168,10 @@ module.exports = {
                     .setTimestamp()
                     .setFooter({ text: `Tổng số kỹ năng: ${learnedSkills.length}/${MAX_SKILLS}` });
 
-                // Gửi tin nhắn thành công, không ephemeral
-                return message.channel.send({ embeds: [learnEmbed] });
+                return message.channel.send({ embeds: [learnEmbed] }).catch(e => {
+                    console.error(`[LEARNSKILL_ERROR] Lỗi gửi embed học skill mới cho ${userId}:`, e);
+                    sendOwnerDM(client, `[Lỗi Learnskill] Lỗi gửi embed học skill mới cho ${userId}.`, e);
+                });
 
             } else if (learnedSkills.length === MAX_SKILLS || desiredSlot !== null) {
                 // Đã đủ 4 skill HOẶC người dùng đã chỉ định slot
@@ -151,11 +184,7 @@ module.exports = {
                 if (desiredSlot !== null) { // Người dùng đã chỉ định slot
                     const skillIndex = desiredSlot - 1;
                     if (skillIndex < 0 || skillIndex >= learnedSkills.length) {
-                        // Sử dụng message.channel.send và ephemeral
-                        return message.channel.send({
-                            content: `<@${userId}> Vị trí ô skill bạn muốn thay thế (**${desiredSlot}**) không hợp lệ. Vui lòng chọn một số từ 1 đến ${learnedSkills.length}.`,
-                            flags: MessageFlags.Ephemeral
-                        });
+                        return sendPrefixedCommandReply(message, `<@${userId}> Vị trí ô skill bạn muốn thay thế (**${desiredSlot}**) không hợp lệ. Vui lòng chọn một số từ 1 đến ${learnedSkills.length}.`, 'learnskill_invalid_replace_slot');
                     }
                     oldSkillIdToReplace = learnedSkills[skillIndex];
 
@@ -173,8 +202,10 @@ module.exports = {
                         .setTimestamp()
                         .setFooter({ text: `Tổng số kỹ năng: ${learnedSkills.length}/${MAX_SKILLS}` });
 
-                    // Gửi tin nhắn thành công, không ephemeral
-                    return message.channel.send({ embeds: [learnSuccessEmbed] });
+                    return message.channel.send({ embeds: [learnSuccessEmbed] }).catch(e => {
+                        console.error(`[LEARNSKILL_ERROR] Lỗi gửi embed học skill thay thế cho ${userId}:`, e);
+                        sendOwnerDM(client, `[Lỗi Learnskill] Lỗi gửi embed học skill thay thế cho ${userId}.`, e);
+                    });
 
                 } else { // Đã đủ 4 skill và người dùng CHƯA chỉ định slot, hiển thị nút để chọn
                     const choiceEmbed = new EmbedBuilder()
@@ -205,73 +236,95 @@ module.exports = {
                         actionRows.push(new ActionRowBuilder().addComponents(buttons.slice(i, i + 5)));
                     }
 
-                    // Gửi tin nhắn với embed và nút, không ephemeral
                     const responseMessage = await message.channel.send({
                         embeds: [choiceEmbed],
                         components: actionRows,
-                        fetchReply: true // Quan trọng để lấy được đối tượng tin nhắn để tạo collector
+                        fetchReply: true 
+                    }).catch(e => {
+                        console.error(`[LEARNSKILL_ERROR] Lỗi gửi tin nhắn chọn skill thay thế cho ${userId}:`, e);
+                        sendOwnerDM(client, `[Lỗi Learnskill] Lỗi gửi tin nhắn chọn skill thay thế cho ${userId}.`, e);
+                        return null;
                     });
 
+                    if (!responseMessage) return;
+
                     const filter = i => i.user.id === userId && (i.customId.startsWith('forget_skill_') || i.customId.startsWith('cancel_learn_'));
-                    const collector = responseMessage.createMessageComponentCollector({ filter, time: 60000 });
+                    const collector = responseMessage.createMessageComponentCollector({ filter, time: MESSAGE_LIFETIME });
 
                     collector.on('collect', async i => {
-                        await i.deferUpdate();
+                        // ĐÃ XÓA: await i.deferUpdate(); // handlers/interactionCreate.js đã xử lý defer
 
                         if (i.customId.startsWith('cancel_learn_')) {
                             collector.stop('cancel');
-                            // Sử dụng i.editReply
-                            return i.editReply({
-                                content: `Đã hủy bỏ việc học kỹ năng mới cho **${pokemonDisplayName}**.`,
-                                embeds: [],
-                                components: []
-                            });
+                            await sendInteractionReply(i, `Đã hủy bỏ việc học kỹ năng mới cho **${pokemonDisplayName}**.`, false, 'learnskill_cancel_reply');
+                            await editMessageSafe(responseMessage, { embeds: [], components: [] }, 'learnskill_cancel_edit_original');
+                            return;
                         }
 
                         const parts = i.customId.split('_');
+                        const oldPokemonId = parseInt(parts[2]); // Lấy userPokemonId từ customId
                         const oldSkillId = parseInt(parts[3]);
                         const newSkillId = parseInt(parts[4]);
 
-                        const oldSkillIndex = learnedSkills.indexOf(oldSkillId);
-                        if (oldSkillIndex === -1) {
-                            collector.stop('error');
-                            // Sử dụng i.editReply
-                            return i.editReply({
-                                content: `Có vẻ kỹ năng bạn chọn để quên không còn trong danh sách. Vui lòng thử lại.`,
-                                embeds: [],
-                                components: []
-                            });
+                        // Kiểm tra lại userPokemonId khớp với người dùng hiện tại
+                        if (oldPokemonId !== userPokemonId) {
+                            return sendInteractionReply(i, 'Tương tác không hợp lệ cho Pokémon này.', true, 'learnskill_invalid_pokemon_id_in_interaction');
                         }
 
-                        learnedSkills[oldSkillIndex] = newSkillId;
-                        const updatedLearnedSkills = JSON.stringify(learnedSkills);
+                        // Lấy lại learnedSkills từ DB để đảm bảo dữ liệu mới nhất
+                        const updatedUserPokemon = await db('user_pokemons')
+                            .where({ 'user_discord_id': userId, 'id': userPokemonId })
+                            .select('learned_skill_ids')
+                            .first();
+                        let currentLearnedSkills = [];
+                        try {
+                            currentLearnedSkills = JSON.parse(updatedUserPokemon.learned_skill_ids || '[]');
+                            if (!Array.isArray(currentLearnedSkills)) {
+                                currentLearnedSkills = [];
+                            }
+                        } catch (parseError) {
+                            console.error(`[LEARNSKILL_ERROR] Lỗi phân tích learned_skill_ids trong collector cho Pokémon ${userPokemon.id}:`, parseError);
+                            sendOwnerDM(client, `[Lỗi Learnskill] Lỗi phân tích learned_skill_ids trong collector cho Pokémon ${userPokemon.id} của ${userId}.`, parseError);
+                            currentLearnedSkills = [];
+                        }
+
+                        const oldSkillIndex = currentLearnedSkills.indexOf(oldSkillId);
+                        if (oldSkillIndex === -1) {
+                            collector.stop('error');
+                            return sendInteractionReply(i, `Có vẻ kỹ năng bạn chọn để quên không còn trong danh sách. Vui lòng thử lại.`, true, 'learnskill_skill_not_in_list');
+                        }
+
+                        currentLearnedSkills[oldSkillIndex] = newSkillId;
+                        const finalUpdatedLearnedSkills = JSON.stringify(currentLearnedSkills);
 
                         await db('user_pokemons')
                             .where('id', userPokemonId)
-                            .update({ learned_skill_ids: updatedLearnedSkills });
+                            .update({ learned_skill_ids: finalUpdatedLearnedSkills });
 
+                        const oldSkillDetails = currentLearnedSkillsDetails.find(s => s.skill_id === oldSkillId);
                         const learnSuccessEmbed = new EmbedBuilder()
                             .setColor('#00FF00')
                             .setTitle(`✅ ${pokemonDisplayName} đã học kỹ năng mới!`)
-                            .setDescription(`**${pokemonDisplayName}** (ID: ${userPokemon.id}) đã quên **${currentLearnedSkillsDetails.find(s => s.skill_id === oldSkillId).name}** và học thành công **${skillDetails.name}**!`)
+                            .setDescription(`**${pokemonDisplayName}** (ID: ${userPokemon.id}) đã quên **${oldSkillDetails ? oldSkillDetails.name : 'kỹ năng cũ'}** và học thành công **${skillDetails.name}**!`)
                             .setTimestamp()
-                            .setFooter({ text: `Tổng số kỹ năng: ${learnedSkills.length}/${MAX_SKILLS}` });
+                            .setFooter({ text: `Tổng số kỹ năng: ${currentLearnedSkills.length}/${MAX_SKILLS}` });
 
                         collector.stop('success');
-                        // Sử dụng i.editReply
-                        return i.editReply({ embeds: [learnSuccessEmbed], components: [] });
-
+                        await sendInteractionReply(i, { embeds: [learnSuccessEmbed], components: [] }, false, 'learnskill_success_edit_reply');
+                        await editMessageSafe(responseMessage, { embeds: [], components: [] }, 'learnskill_success_edit_original');
                     });
 
-                    collector.on('end', (collected, reason) => {
+                    collector.on('end', async (collected, reason) => {
                         if (reason === 'time') {
-                            // Sử dụng responseMessage.edit
-                            responseMessage.edit({
+                            await editMessageSafe(responseMessage, {
                                 content: `Đã hết thời gian chọn kỹ năng để thay thế cho **${pokemonDisplayName}**.`,
                                 embeds: [],
                                 components: []
-                            }).catch(e => console.error("Error editing message after timeout:", e));
+                            }, 'learnskill_timeout_edit_message');
                         }
+                        // Nếu collector dừng vì 'cancel' hoặc 'success' hoặc 'error',
+                        // các tin nhắn đã được xử lý bởi các hàm sendInteractionReply/editMessageSafe
+                        // nên không cần làm gì thêm ở đây.
                     });
 
                     return;
@@ -279,12 +332,12 @@ module.exports = {
             }
 
         } catch (error) {
-            console.error(`Lỗi khi dạy kỹ năng cho Pokémon:`, error);
-            // Sử dụng message.channel.send và ephemeral
-            message.channel.send({
-                content: `<@${userId}> Đã xảy ra lỗi khi cố gắng dạy kỹ năng. Vui lòng thử lại sau.`,
-                flags: MessageFlags.Ephemeral
-            });
+            console.error(`[LEARNSKILL_ERROR] Lỗi khi dạy kỹ năng cho Pokémon:`, error);
+            sendOwnerDM(client, `[Lỗi Learnskill] Lỗi khi dạy kỹ năng cho Pokémon của ${userId}.`, error);
+            // Gửi phản hồi lỗi cho người dùng
+            await sendPrefixedCommandReply(message, `<@${userId}> Đã xảy ra lỗi khi cố gắng dạy kỹ năng. Vui lòng thử lại sau.`, 'learnskill_general_error');
         }
-    }
+    },
+    // Nếu bạn có Slash Command cho learnskill, bạn sẽ cần một handleInteraction ở đây
+    // async handleInteraction(interaction, client, db) { ... }
 };

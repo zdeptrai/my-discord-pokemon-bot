@@ -52,7 +52,7 @@ module.exports = {
         // --- Xử lý Button và Select Menu Interactions ---
         else if (interaction.isButton() || interaction.isStringSelectMenu()) {
             // Danh sách các customId mà handlers/interactionCreate.js nên BỎ QUA việc deferUpdate
-            // vì các lệnh tương ứng (viewskill, market, help, shop, starter selection, pvp, profile) sẽ tự xử lý defer/update thông qua Collector của chúng.
+            // vì các lệnh tương ứng (viewskill, market, help, shop, starter selection, pvp, profile, learnskill) sẽ tự xử lý defer/update thông qua Collector của chúng.
             const skipDeferCustomIdPrefixes = [
                 'prev_page', 
                 'next_page', 
@@ -62,7 +62,8 @@ module.exports = {
                 'shop_', 
                 'select_starter_', 
                 'pvp_', 
-                'profile_', // THÊM TIỀN TỐ PROFILE VÀO ĐÂY
+                'profile_', 
+                'learnskill_', // THÊM TIỀN TỐ LEARNSKILL VÀO ĐÂY
             ];
 
             // Kiểm tra xem customId có bắt đầu bằng bất kỳ tiền tố nào cần bỏ qua defer không
@@ -114,7 +115,17 @@ module.exports = {
                         console.warn(`[WARNING] Lệnh pvp hoặc handleInteraction của nó không tìm thấy cho CustomID: ${interaction.customId}`);
                     }
                 }
-                // KHÔNG CÓ LOGIC ĐỊNH TUYẾN LẠI CHO VIEWSKILL, MARKET, HELP, SHOP HOẶC PROFILE Ở ĐÂY NỮA
+                // Thêm điều kiện cho learnskill
+                else if (interaction.customId.startsWith('learnskill_')) {
+                    const learnskillCommand = client.commands.get('learnskill');
+                    if (learnskillCommand && learnskillCommand.handleInteraction) {
+                        await learnskillCommand.handleInteraction(interaction, client, db);
+                        handled = true;
+                    } else {
+                        console.warn(`[WARNING] Lệnh learnskill hoặc handleInteraction của nó không tìm thấy cho CustomID: ${interaction.customId}`);
+                    }
+                }
+                // KHÔNG CÓ LOGIC ĐỊNH TUYẾN LẠI CHO VIEWSKILL, MARKET, HELP HOẶC PROFILE Ở ĐÂY NỮA
                 // Vì Collector của chúng sẽ tự xử lý các tương tác của chúng.
 
                 if (!handled) {

@@ -2,3 +2,4 @@
 .env
 node_modules/
 sync-dev-db.js
+config.js

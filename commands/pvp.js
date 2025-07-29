@@ -14,17 +14,37 @@ const pendingPvpChallenges = new Map();
 const activePvpBattles = new Map();
 
 /**
- * Gửi tin nhắn ephemeral và báo cáo lỗi nếu không thành công.
+ * Gửi tin nhắn phản hồi cho một Interaction (có thể là ephemeral).
  * @param {Interaction} interaction Đối tượng tương tác.
+ * @param {string} content Nội dung tin nhắn.
+ * @param {boolean} [ephemeral=false] Có phải là tin nhắn ephemeral không.
+ * @param {string} logContext Ngữ cảnh log lỗi.
+ */
+async function sendInteractionReply(interaction, content, ephemeral = false, logContext) {
+    try {
+        if (interaction.deferred || interaction.replied) {
+            await interaction.followUp({ content, flags: ephemeral ? MessageFlags.Ephemeral : 0 });
+        } else {
+            await interaction.reply({ content, flags: ephemeral ? MessageFlags.Ephemeral : 0 });
+        }
+    } catch (e) {
+        console.error(`[PVP_ERROR] Lỗi gửi tin nhắn tương tác (${logContext}) cho ${interaction.user.tag}:`, e);
+        sendOwnerDM(interaction.client, `[Lỗi PvP] Lỗi gửi tin nhắn tương tác (${logContext}) cho ${interaction.user.tag}.`, e);
+    }
+}
+
+/**
+ * Gửi tin nhắn phản hồi cho một lệnh tiền tố (không thể là ephemeral).
+ * @param {Message} message Đối tượng tin nhắn gốc của lệnh.
  * @param {string} content Nội dung tin nhắn.
  * @param {string} logContext Ngữ cảnh log lỗi.
  */
-async function sendEphemeralReply(interaction, content, logContext) {
+async function sendPrefixedCommandReply(message, content, logContext) {
     try {
-        await interaction.reply({ content, flags: MessageFlags.Ephemeral });
+        await message.channel.send(content);
     } catch (e) {
-        console.error(`[PVP_ERROR] Lỗi gửi tin nhắn ephemeral (${logContext}):`, e);
-        sendOwnerDM(interaction.client, `[Lỗi PvP] Lỗi gửi tin nhắn ephemeral (${logContext}) cho ${interaction.user.tag}.`, e);
+        console.error(`[PVP_ERROR] Lỗi gửi tin nhắn phản hồi lệnh tiền tố (${logContext}) cho ${message.author.tag}:`, e);
+        sendOwnerDM(message.client, `[Lỗi PvP] Lỗi gửi tin nhắn phản hồi lệnh tiền tố (${logContext}) cho ${message.author.tag}.`, e);
     }
 }
 
@@ -89,12 +109,12 @@ module.exports = {
         const userDisplayName = message.member ? message.member.displayName : message.author.displayName;
 
         if (args.length !== 2) {
-            return sendEphemeralReply(message.channel, `<@${userId}> Vui lòng sử dụng đúng cú pháp: \`${client.config.PREFIX}pvp <@đối_thủ> <chế_độ_1v1|3v3|5v5>\`.`, 'pvp_syntax_error');
+            return sendPrefixedCommandReply(message, `<@${userId}> Vui lòng sử dụng đúng cú pháp: \`${client.config.PREFIX}pvp <@đối_thủ> <chế_độ_1v1|3v3|5v5>\`.`, 'pvp_syntax_error');
         }
 
         const opponentMention = message.mentions.users.first();
         if (!opponentMention) {
-            return sendEphemeralReply(message.channel, `<@${userId}> Vui lòng tag người bạn muốn thách đấu.`, 'pvp_no_opponent_tagged');
+            return sendPrefixedCommandReply(message, `<@${userId}> Vui lòng tag người bạn muốn thách đấu.`, 'pvp_no_opponent_tagged');
         }
 
         const opponentId = opponentMention.id;
@@ -106,40 +126,40 @@ module.exports = {
             case '3v3': mode = 3; break;
             case '5v5': mode = 5; break;
             default:
-                return sendEphemeralReply(message.channel, `<@${userId}> Chế độ PvP không hợp lệ. Vui lòng chọn \`1v1\`, \`3v3\` hoặc \`5v5\`.`, 'pvp_invalid_mode');
+                return sendPrefixedCommandReply(message, `<@${userId}> Chế độ PvP không hợp lệ. Vui lòng chọn \`1v1\`, \`3v3\` hoặc \`5v5\`.`, 'pvp_invalid_mode');
         }
 
         if (userId === opponentId) {
-            return sendEphemeralReply(message.channel, `<@${userId}> Bạn không thể thách đấu chính mình!`, 'pvp_self_challenge');
+            return sendPrefixedCommandReply(message, `<@${userId}> Bạn không thể thách đấu chính mình!`, 'pvp_self_challenge');
         }
 
         const isChallengerRegistered = await isUserRegistered(userId);
         const isOpponentRegistered = await isUserRegistered(opponentId);
 
         if (!isChallengerRegistered) {
-            return sendEphemeralReply(message.channel, `<@${userId}> Bạn chưa bắt đầu cuộc phiêu lưu của mình! Vui lòng sử dụng lệnh \`${client.config.PREFIX}start\` để đăng ký.`, 'pvp_challenger_not_registered');
+            return sendPrefixedCommandReply(message, `<@${userId}> Bạn chưa bắt đầu cuộc phiêu lưu của mình! Vui lòng sử dụng lệnh \`${client.config.PREFIX}start\` để đăng ký.`, 'pvp_challenger_not_registered');
         }
         if (!isOpponentRegistered) {
-            return sendEphemeralReply(message.channel, `<@${opponentId}> Người này chưa bắt đầu cuộc phiêu lưu của họ.`, 'pvp_opponent_not_registered');
+            return sendPrefixedCommandReply(message, `<@${opponentId}> Người này chưa bắt đầu cuộc phiêu lưu của họ.`, 'pvp_opponent_not_registered');
         }
 
         if (activePvpBattles.has(message.channel.id) || 
             Array.from(pendingPvpChallenges.values()).some(c => c.challengerId === userId || c.opponentId === userId || c.challengerId === opponentId || c.opponentId === opponentId)) {
-            return sendEphemeralReply(message.channel, `<@${userId}> Bạn hoặc đối thủ đã đang trong một trận đấu/thử thách PvP khác.`, 'pvp_already_in_battle');
+            return sendPrefixedCommandReply(message, `<@${userId}> Bạn hoặc đối thủ đã đang trong một trận đấu/thử thách PvP khác.`, 'pvp_already_in_battle');
         }
 
         let challengerTeam;
         try {
             challengerTeam = await getPokemonTeamForPvp(userId, mode, db);
         } catch (error) {
-            return sendEphemeralReply(message.channel, `<@${userId}> Lỗi đội hình của bạn: ${error.message}`, 'pvp_challenger_team_error');
+            return sendPrefixedCommandReply(message, `<@${userId}> Lỗi đội hình của bạn: ${error.message}`, 'pvp_challenger_team_error');
         }
 
         let opponentTeamCheck;
         try {
             opponentTeamCheck = await getPokemonTeamForPvp(opponentId, mode, db);
         } catch (error) {
-            return sendEphemeralReply(message.channel, `<@${opponentId}> Lỗi đội hình của đối thủ: ${error.message}`, 'pvp_opponent_team_check_error');
+            return sendPrefixedCommandReply(message, `<@${opponentId}> Lỗi đội hình của đối thủ: ${error.message}`, 'pvp_opponent_team_check_error');
         }
         
         const challengeMessage = await message.channel.send({
@@ -197,11 +217,11 @@ module.exports = {
                 const challenge = pendingPvpChallenges.get(challengerId);
 
                 if (!challenge || challenge.opponentId !== userId || challenge.channelId !== interaction.channel.id) {
-                    return sendEphemeralReply(interaction, 'Thử thách PvP này không hợp lệ hoặc đã hết hạn.', 'pvp_accept_invalid_challenge');
+                    return sendInteractionReply(interaction, 'Thử thách PvP này không hợp lệ hoặc đã hết hạn.', true, 'pvp_accept_invalid_challenge');
                 }
                 if (activePvpBattles.has(interaction.channel.id) || 
                     Array.from(activePvpBattles.values()).some(b => b.players[userId] || b.players[challengerId])) {
-                    return sendEphemeralReply(interaction, 'Bạn hoặc đối thủ đã đang trong một trận đấu PvP khác.', 'pvp_accept_already_in_battle');
+                    return sendInteractionReply(interaction, 'Bạn hoặc đối thủ đã đang trong một trận đấu PvP khác.', true, 'pvp_accept_already_in_battle');
                 }
                 
                 // Ghi nhận tương tác và cập nhật tin nhắn gốc (thử thách)
@@ -226,7 +246,7 @@ module.exports = {
                 } catch (error) {
                     console.error(`[PVP_INTERACTION_ERROR] Lỗi khi lấy đội hình đối thủ cho ${userId}:`, error); 
                     sendOwnerDM(client, `[Lỗi PvP] Lỗi khi lấy đội hình đối thủ cho người dùng ${userId}.`, error);
-                    return sendEphemeralReply(interaction, `Lỗi đội hình của bạn: ${error.message}`, 'pvp_accept_opponent_team_error');
+                    return sendInteractionReply(interaction, `Lỗi đội hình của bạn: ${error.message}`, true, 'pvp_accept_opponent_team_error');
                 }
 
                 const challengerTeam = challenge.challengerTeam;
@@ -283,7 +303,7 @@ module.exports = {
                 const challenge = pendingPvpChallenges.get(challengerId);
 
                 if (!challenge || challenge.opponentId !== userId || challenge.channelId !== interaction.channel.id) {
-                    return sendEphemeralReply(interaction, 'Thử thách PvP này không hợp lệ hoặc đã hết hạn.', 'pvp_decline_invalid_challenge');
+                    return sendInteractionReply(interaction, 'Thử thách PvP này không hợp lệ hoặc đã hết hạn.', true, 'pvp_decline_invalid_challenge');
                 }
 
                 pendingPvpChallenges.delete(challengerId); 
@@ -322,7 +342,7 @@ module.exports = {
                 const battleState = activePvpBattles.get(interaction.channel.id);
 
                 if (!battleState || battleState.activePlayerId !== userId || playerId !== userId) {
-                    return sendEphemeralReply(interaction, 'Đây không phải lượt của bạn hoặc trận đấu đã kết thúc/không hợp lệ.', 'pvp_skill_invalid_turn');
+                    return sendInteractionReply(interaction, 'Đây không phải lượt của bạn hoặc trận đấu đã kết thúc/không hợp lệ.', true, 'pvp_skill_invalid_turn');
                 }
 
                 deleteEphemeralMessageSafe(interaction.channel, battleState.players[userId].ephemeralMessageId, 'pvp_skill_delete_ephemeral');
@@ -338,7 +358,7 @@ module.exports = {
                 const selectedSkill = activePokemon.skills.find(s => s.skill_id === parseInt(skillId));
 
                 if (!selectedSkill) {
-                    return sendEphemeralReply(interaction, 'Kỹ năng không hợp lệ hoặc không tìm thấy. Vui lòng thử lại.', 'pvp_skill_not_found');
+                    return sendInteractionReply(interaction, 'Kỹ năng không hợp lệ hoặc không tìm thấy. Vui lòng thử lại.', true, 'pvp_skill_not_found');
                 }
 
                 const attackResult = calculateDamage(activePokemon, opponentPokemon, selectedSkill);
@@ -411,7 +431,7 @@ module.exports = {
                 const battleState = activePvpBattles.get(interaction.channel.id);
 
                 if (!battleState || playerId !== userId) {
-                    return sendEphemeralReply(interaction, 'Bạn không thể đầu hàng trận đấu này.', 'pvp_forfeit_invalid_turn');
+                    return sendInteractionReply(interaction, 'Bạn không thể đầu hàng trận đấu này.', true, 'pvp_forfeit_invalid_turn');
                 }
                 
                 deleteEphemeralMessageSafe(interaction.channel, battleState.players[userId].ephemeralMessageId, 'pvp_forfeit_delete_ephemeral');
@@ -432,6 +452,9 @@ module.exports = {
                         sendOwnerDM(client, `[Lỗi PvP] Lỗi khi chỉnh sửa phản hồi lỗi ephemeral sau lỗi PvP cho ${userId}.`, e);
                     });
             } else {
+                // Trường hợp này không nên xảy ra nếu deferUpdate thành công.
+                // Nếu deferUpdate thất bại, nó đã được catch ở interactionCreate.js.
+                // Đây là fallback an toàn.
                 await interaction.reply({ content: 'Đã xảy ra lỗi khi xử lý yêu cầu của bạn. Vui lòng thử lại.', flags: MessageFlags.Ephemeral })
                     .catch(e => {
                         console.error("Lỗi khi gửi phản hồi lỗi ephemeral sau lỗi PvP:", e);
