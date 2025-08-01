@@ -1,5 +1,5 @@
 // index.js
-// require('dotenv').config(); // <-- XÓA DÒNG NÀY KHI CHẠY TRÊN REPLIT
+require('dotenv').config(); // <-- Xóa dòng này khi dùng trên Replit
 
 const { Client, GatewayIntentBits, Collection } = require('discord.js');
 const path = require('path');
@@ -7,7 +7,7 @@ const fs = require('fs');
 
 // Cập nhật đường dẫn require cho các module đã di chuyển
 const { sendOwnerDM } = require('./utils/errors/errorReporter'); 
-const { loadCommands } = require('./utils/loaders/commandLoader'); 
+const { loadCommands } = require('./utils/loaders/commandLoader');
 const { loadDiscordEventHandlers } = require('./utils/loaders/eventLoader'); 
 const { setupCleanupHandlers } = require('./utils/managers/cleanupManager'); 
 
@@ -22,25 +22,10 @@ const client = new Client({
     ],
 });
 
-// Thêm kiểm tra biến môi trường (tùy chọn nhưng nên có)
-if (!process.env.DISCORD_TOKEN) {
-    console.error('Lỗi: Biến môi trường DISCORD_TOKEN không được thiết lập.');
-    process.exit(1); // Thoát ứng dụng nếu thiếu token
-}
-if (!process.env.DATABASE_URL) {
-    console.error('Lỗi: Biến môi trường DATABASE_URL không được thiết lập.');
-    process.exit(1); // Thoát ứng dụng nếu thiếu DATABASE_URL
-}
-// Thêm kiểm tra cho các biến khác nếu bạn muốn bot không chạy khi thiếu config quan trọng
-if (!process.env.OWNER_DISCORD_ID) {
-    console.warn('Cảnh báo: Biến môi trường OWNER_DISCORD_ID không được thiết lập. Các tính năng liên quan đến chủ sở hữu có thể không hoạt động.');
-}
-
-
 client.config = {
     PREFIX: process.env.PREFIX || '!',
     OWNER_DISCORD_ID: process.env.OWNER_DISCORD_ID, 
-    OWNER_DISCORD_NAME: process.env.OWNER_DISCORD_NAME, // <-- SỬA LỖI CHÍNH TẢ Ở ĐÂY
+    OWNER_DISCORD_NAME: process.env.OWNOR_DISCORD_NAME, // Lỗi chính tả ở đây: OWNER_DISCORD_NAME
     BOT_STATUS_MESSAGE: process.env.BOT_STATUS_MESSAGE || 'Hello, I\'m Bot by z',
     BOT_STATUS_TYPE: process.env.BOT_STATUS_TYPE || 'Custom',
 };
