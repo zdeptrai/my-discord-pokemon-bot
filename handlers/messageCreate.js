@@ -2,24 +2,20 @@
 const { Events, MessageFlags, Collection } = require('discord.js');
 const { isUserRegistered } = require('../utils/core/userUtils'); 
 const { deleteMessageWithTimeout } = require('../utils/core/commonUtils'); 
-const { handleMessageResponse } = require('../events/messageResponses');
+// const { handleMessageResponse } = require('../events/messageResponses'); // Đã vô hiệu hóa
 const { sendOwnerDM } = require('../utils/errors/errorReporter'); 
 
 module.exports = {
     name: Events.MessageCreate,
     once: false,
-    // SỬA ĐỔI: Chỉ nhận 'message' làm tham số
     async execute(message) { 
-        // client và db có thể truy cập qua message.client và message.client.db
         const client = message.client;
         const db = client.db;
 
         if (message.author.bot || message.webhookId) return;
 
-        const handledByResponse = await handleMessageResponse(message, client);
-        if (handledByResponse) {
-            return;
-        }
+        // Đã xóa dòng gọi hàm handleMessageResponse và câu lệnh if liên quan
+        // vì hàm này đã bị vô hiệu hóa.
 
         if (!message.content.startsWith(client.config.PREFIX)) return;
 
@@ -44,7 +40,6 @@ module.exports = {
         }
 
         if (commandName !== 'start' && commandName !== 'help' && commandName !== 'setchannel' && commandName !== 'pvp' && commandName !== 'st' && commandName !== 'startev' && commandName !== 'roll') { 
-            // SỬ DỤNG db từ client.db
             const registered = await isUserRegistered(userId, db); 
             if (!registered) {
                 await message.channel.send({
@@ -82,7 +77,6 @@ module.exports = {
         setTimeout(() => timestamps.delete(message.author.id), cooldownAmount);
 
         try {
-            // Truyền db vào command.execute
             await command.execute(message, args, client, db); 
         } catch (error) {
             console.error(`[COMMAND_EXECUTION_ERROR] Lỗi khi thực thi lệnh '${commandName}':`, error);

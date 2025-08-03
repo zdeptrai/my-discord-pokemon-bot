@@ -1,23 +1,17 @@
 // utils/managers/marketplaceCleanup.js
-const { db } = require('../../db'); // Cập nhật đường dẫn: từ utils/managers/ lên 2 cấp để đến db.js
+const { db } = require('../../db');
 const { EmbedBuilder } = require('discord.js');
 
 const MARKETPLACE_FEE_PERCENTAGE = 0.10; // Phí 10%
 const CLEANUP_INTERVAL_MS = 10 * 60 * 1000; // Chạy mỗi 10 phút
 
-// Biến để theo dõi trạng thái của interval
-let cleanupIntervalId = null; 
+let cleanupIntervalId = null;
 
-/**
- * Hàm kiểm tra và xử lý các listing đã hết hạn.
- * @param {Client} client - Đối tượng Discord Client để gửi DM.
- */
 async function cleanupExpiredListings(client) {
     console.log('[MARKETPLACE_CLEANUP] Bắt đầu kiểm tra các listing hết hạn...');
     const now = new Date();
 
     try {
-        // Tìm tất cả các listing đang active và đã hết hạn
         const expiredListings = await db('marketplace_listings')
             .where('status', 'active')
             .andWhere('listing_expires_at', '<=', now)
@@ -41,39 +35,38 @@ async function cleanupExpiredListings(client) {
                         .where({ discord_id: sellerId })
                         .decrement('pokecoins', feeAmount);
 
-                    // Lấy lại thông tin người bán sau khi trừ phí để hiển thị số dư chính xác
                     const updatedSellerUser = await trx('users').where({ discord_id: sellerId }).first();
                     const updatedSellerCoins = updatedSellerUser ? updatedSellerUser.pokecoins : 0;
 
                     let itemDisplayName = '';
                     let returnSuccess = false;
 
-                    // 2. Trả lại vật phẩm/Pokémon cho người bán
+                    // 2. Trả lại vật phẩm/Pokémon cho người bán bằng cách cập nhật trạng thái
                     if (listing.item_type === 'pokemon') {
-                        await trx('user_pokemons')
+                        const updatedCount = await trx('user_pokemons')
                             .where({ id: listing.item_reference_id })
                             .update({
-                                user_discord_id: sellerId, // Chuyển quyền sở hữu về người bán
                                 is_on_marketplace: false,
                                 marketplace_listing_id: null,
                                 updated_at: new Date()
                             });
-                        const userPokemon = await db('user_pokemons').where({ id: listing.item_reference_id }).first();
-                        if (userPokemon) {
-                            const pokemonData = await db('pokemons').where({ pokedex_id: userPokemon.pokedex_id }).first();
-                            itemDisplayName = `${userPokemon.nickname || pokemonData.name} (Lv.${userPokemon.level})`;
-                            returnSuccess = true;
+                        
+                        if (updatedCount > 0) {
+                            const userPokemon = await db('user_pokemons').where({ id: listing.item_reference_id }).first();
+                            if (userPokemon) {
+                                const pokemonData = await db('pokemons').where({ pokedex_id: userPokemon.pokedex_id }).first();
+                                itemDisplayName = `${userPokemon.nickname || pokemonData.name} (Lv.${userPokemon.level})`;
+                                returnSuccess = true;
+                            }
                         }
                     } else if (listing.item_type === 'item') {
-                        const existingItem = await trx('user_inventory_items')
+                        // Trả lại vật phẩm cho kho bằng cách tăng số lượng
+                        const updatedCount = await trx('user_inventory_items')
                             .where({ user_discord_id: sellerId, item_id: listing.item_reference_id })
-                            .first();
-
-                        if (existingItem) {
-                            await trx('user_inventory_items')
-                                .where({ user_discord_id: sellerId, item_id: listing.item_reference_id })
-                                .increment('quantity', listing.quantity);
-                        } else {
+                            .increment('quantity', listing.quantity);
+                        
+                        if (updatedCount === 0) {
+                            // Nếu không có item nào trong kho (vì đã bán hết), thì thêm mới
                             await trx('user_inventory_items').insert({
                                 user_discord_id: sellerId,
                                 item_id: listing.item_reference_id,
@@ -89,20 +82,17 @@ async function cleanupExpiredListings(client) {
                         }
                     }
 
-                    // 3. Cập nhật trạng thái listing thành 'expired'
+                    // 3. Xóa listing đã hết hạn
                     await trx('marketplace_listings')
                         .where({ listing_id: listing.listing_id })
-                        .update({
-                            status: 'expired',
-                            updated_at: new Date()
-                        });
+                        .del();
 
                     // 4. Gửi DM thông báo cho người bán
                     if (returnSuccess) {
                         try {
                             const sellerDMChannel = await client.users.fetch(sellerId);
                             const embed = new EmbedBuilder()
-                                .setColor(0xFFA500) // Màu cam cho thông báo hết hạn
+                                .setColor(0xFFA500)
                                 .setTitle('⏰ Listing của bạn đã hết hạn!')
                                 .setDescription(`Vật phẩm **${itemDisplayName}** (Mã listing: \`${listing.listing_id}\`) của bạn đã hết hạn trên thị trường sau 24 giờ.`)
                                 .addFields(
@@ -127,19 +117,12 @@ async function cleanupExpiredListings(client) {
         }
     } catch (error) {
         console.error('[MARKETPLACE_CLEANUP_ERROR] Lỗi tổng quát trong quá trình dọn dẹp listing:', error);
-        // Có thể gửi DM lỗi cho chủ bot ở đây nếu muốn
-        // const { sendOwnerDM } = require('../errors/errorReporter');
-        // sendOwnerDM(client, `[Lỗi Dọn Dẹp Marketplace] Đã xảy ra lỗi khi dọn dẹp các listing hết hạn.`, error);
     }
     console.log('[MARKETPLACE_CLEANUP] Kết thúc kiểm tra các listing hết hạn.');
 }
 
-/**
- * Lên lịch chạy tác vụ dọn dẹp marketplace.
- * @param {Client} client Discord client.
- */
 function scheduleCleanup(client) {
-    console.log('[MARKETPLACE_CLEANUP] Hàm scheduleCleanup đang được gọi.'); // Dòng log mới
+    console.log('[MARKETPLACE_CLEANUP] Hàm scheduleCleanup đang được gọi.');
     if (cleanupIntervalId) {
         clearInterval(cleanupIntervalId);
     }
@@ -147,9 +130,6 @@ function scheduleCleanup(client) {
     console.log(`[MARKETPLACE_CLEANUP] Tác vụ dọn dẹp marketplace đã được lên lịch chạy mỗi ${CLEANUP_INTERVAL_MS / (1000 * 60)} phút.`);
 }
 
-/**
- * Dừng tác vụ dọn dẹp marketplace.
- */
 function stopCleanup() {
     if (cleanupIntervalId) {
         clearInterval(cleanupIntervalId);
@@ -158,13 +138,9 @@ function stopCleanup() {
     }
 }
 
-/**
- * Lấy trạng thái của Marketplace Cleanup.
- * @returns {object} Trạng thái hiện tại của Marketplace Cleanup.
- */
 function getMarketplaceCleanupStatus() {
     return {
-        isActive: !!cleanupIntervalId, // True nếu interval đang chạy
+        isActive: !!cleanupIntervalId,
         cleanupIntervalMinutes: CLEANUP_INTERVAL_MS / (1000 * 60)
     };
 }
@@ -173,7 +149,7 @@ function getMarketplaceCleanupStatus() {
 module.exports = {
     cleanupExpiredListings,
     CLEANUP_INTERVAL_MS,
-    scheduleCleanup, 
-    stopCleanup,     
-    getMarketplaceCleanupStatus 
+    scheduleCleanup,
+    stopCleanup,
+    getMarketplaceCleanupStatus
 };

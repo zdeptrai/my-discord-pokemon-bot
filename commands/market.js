@@ -33,8 +33,10 @@ module.exports = {
         if (page < 1) page = 1;
 
         try {
+            // Lấy tổng số listings, chỉ tính những listing đang active VÀ chưa hết hạn
             const totalListingsResult = await db('marketplace_listings')
                 .where({ status: 'active' })
+                .where('listing_expires_at', '>', new Date()) // THÊM ĐIỀU KIỆN MỚI
                 .count('listing_id as count')
                 .first();
             const totalListings = parseInt(totalListingsResult.count);
@@ -58,8 +60,10 @@ module.exports = {
 
             const offset = (page - 1) * ITEMS_PER_PAGE;
 
+            // Lấy danh sách listings, chỉ lấy những listing đang active VÀ chưa hết hạn
             const listings = await db('marketplace_listings')
                 .where({ status: 'active' })
+                .where('listing_expires_at', '>', new Date()) // THÊM ĐIỀU KIỆN MỚI
                 .orderBy('listed_at', 'desc')
                 .limit(ITEMS_PER_PAGE)
                 .offset(offset);
@@ -89,10 +93,10 @@ module.exports = {
                 }
 
                 description += `**ID: ${listing.listing_id}** | **${itemName}**\n` +
-                               `Người bán: <@${listing.seller_discord_id}>\n` +
-                               `Giá: ${listing.price} Pokecoin\n` +
-                               `${listing.description ? `Mô tả: ${listing.description}\n` : ''}` +
-                               `Đăng lúc: ${new Date(listing.listed_at).toLocaleString('vi-VN')}\n\n`;
+                    `Người bán: <@${listing.seller_discord_id}>\n` +
+                    `Giá: ${listing.price} Pokecoin\n` +
+                    `${listing.description ? `Mô tả: ${listing.description}\n` : ''}` +
+                    `Đăng lúc: ${new Date(listing.listed_at).toLocaleString('vi-VN')}\n\n`;
             }
 
             const embed = new EmbedBuilder()
@@ -127,8 +131,6 @@ module.exports = {
             });
 
             collector.on('collect', async i => {
-                // ĐÃ BỎ: await i.deferUpdate(); // handlers/interactionCreate.js sẽ bỏ qua defer, i.update() sẽ tự defer/acknowledge
-
                 let newPage = page;
                 if (i.customId.includes('prev')) {
                     newPage--;
@@ -140,9 +142,8 @@ module.exports = {
                 if (newPage > totalPages) newPage = totalPages;
 
                 if (newPage === page) {
-                    // Nếu trang không đổi, chỉ cần cập nhật tương tác mà không cần fetch lại dữ liệu
                     try {
-                        await i.update({}); // Gửi một update rỗng để acknowledge tương tác
+                        await i.update({});
                     } catch (updateError) {
                         if (updateError.code === 10062 || updateError.code === 40060) {
                             console.warn(`[MARKET_COLLECTOR_WARN] Tương tác đã hết hạn hoặc đã được xử lý: ${updateError.code}`);
@@ -159,6 +160,7 @@ module.exports = {
                 const newOffset = (page - 1) * ITEMS_PER_PAGE;
                 const newlistings = await db('marketplace_listings')
                     .where({ status: 'active' })
+                    .where('listing_expires_at', '>', new Date()) // SỬA TRUY VẤN Ở ĐÂY
                     .orderBy('listed_at', 'desc')
                     .limit(ITEMS_PER_PAGE)
                     .offset(newOffset);
@@ -187,10 +189,10 @@ module.exports = {
                         }
                     }
                     newDescription += `**ID: ${listing.listing_id}** | **${itemName}**\n` +
-                                    `Người bán: <@${listing.seller_discord_id}>\n` +
-                                    `Giá: ${listing.price} Pokecoin\n` +
-                                    `${listing.description ? `Mô tả: ${listing.description}\n` : ''}` +
-                                    `Đăng lúc: ${new Date(listing.listed_at).toLocaleString('vi-VN')}\n\n`;
+                        `Người bán: <@${listing.seller_discord_id}>\n` +
+                        `Giá: ${listing.price} Pokecoin\n` +
+                        `${listing.description ? `Mô tả: ${listing.description}\n` : ''}` +
+                        `Đăng lúc: ${new Date(listing.listed_at).toLocaleString('vi-VN')}\n\n`;
                 }
 
                 const newEmbed = new EmbedBuilder()
@@ -214,7 +216,7 @@ module.exports = {
                     );
 
                 try {
-                    await i.update({ // Sử dụng i.update() để chỉnh sửa tin nhắn tương tác
+                    await i.update({
                         embeds: [newEmbed],
                         components: [newRow]
                     });
@@ -223,7 +225,7 @@ module.exports = {
                         console.warn(`[MARKET_COLLECTOR_WARN] Tương tác đã hết hạn hoặc đã được xử lý: ${updateError.code}`);
                     } else {
                         console.error(`[MARKET_COLLECTOR_ERROR] Lỗi khi cập nhật tin nhắn market trong collector cho ${userId}:`, updateError);
-                        sendOwnerDM(client, `[Lỗi Market Collector] Lỗi khi cập nhật tin nhắn phân trang cho ${userId}.`, updateError);
+                        sendOwnerDM(client, `[Lỗi Market Collector End] Lỗi khi cập nhật tin nhắn phân trang cho ${userId}.`, updateError);
                     }
                 }
             });
@@ -243,13 +245,11 @@ module.exports = {
                             .setDisabled(true),
                     );
                 try {
-                    // Kiểm tra xem tin nhắn có còn tồn tại và có thể chỉnh sửa không
                     const fetchedMessage = await message.channel.messages.fetch(replyMessage.id).catch(() => null);
                     if (fetchedMessage && fetchedMessage.editable) {
                         await fetchedMessage.edit({ components: [disabledRow] });
                     }
                 } catch (e) {
-                    // Bắt lỗi Unknown Message (10008) nếu tin nhắn đã bị xóa
                     if (e.code === 10008) {
                         console.warn(`[MARKET_COLLECTOR_WARN] Tin nhắn market đã bị xóa, không thể vô hiệu hóa nút.`);
                     } else {

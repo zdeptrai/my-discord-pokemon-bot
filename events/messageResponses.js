@@ -1,6 +1,6 @@
 // events/messageResponses.js
 
-module.exports = {
+/*module.exports = {
     async handleMessageResponse(message, client) {
         // Luôn bỏ qua tin nhắn từ bot hoặc từ webhook để tránh lặp vô hạn
         if (message.author.bot || message.webhookId) return false;
@@ -69,4 +69,4 @@ module.exports = {
 
         return false; // Không có phản hồi nào được kích hoạt
     },
-};
+};*/

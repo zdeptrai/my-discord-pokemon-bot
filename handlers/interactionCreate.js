@@ -1,6 +1,6 @@
 // handlers/interactionCreate.js
 const { Events, Collection, MessageFlags } = require('discord.js');
-const { sendOwnerDM } = require('../utils/errors/errorReporter'); 
+const { sendOwnerDM, logErrorToFile } = require('../utils/errors/errorReporter'); // Cập nhật import
 const starterSelectionModule = require('../interactions/handleStarterSelection'); 
 const pvpCommandModule = require('../commands/pvp'); 
 
@@ -13,6 +13,8 @@ module.exports = {
 
             if (!command) {
                 console.error(`[ERROR] Không tìm thấy Slash Command ${interaction.commandName}.`);
+                // Lỗi ít nghiêm trọng: ghi log
+                logErrorToFile('SLASH_COMMAND_NOT_FOUND', interaction.user.tag, `Không tìm thấy Slash Command ${interaction.commandName}.`, null);
                 return;
             }
 
@@ -27,7 +29,6 @@ module.exports = {
 
             if (timestamps.has(interaction.user.id)) {
                 const expirationTime = timestamps.get(interaction.user.id) + cooldownAmount;
-
                 if (now < expirationTime) {
                     const timeLeft = (expirationTime - now) / 1000;
                     return interaction.reply({ content: `Vui lòng đợi thêm ${timeLeft.toFixed(1)} giây trước khi sử dụng lệnh \`${command.name}\` một lần nữa.`, flags: MessageFlags.Ephemeral });
@@ -41,7 +42,11 @@ module.exports = {
                 await command.execute(interaction, client, db); 
             } catch (error) {
                 console.error(`[SLASH_COMMAND_ERROR] Lỗi khi thực thi Slash Command ${interaction.commandName}:`, error);
+                
+                // Lỗi nghiêm trọng: ghi log VÀ gửi DM
+                logErrorToFile('SLASH_COMMAND_EXECUTION_ERROR', interaction.user.tag, `Lỗi khi thực thi Slash Command ${interaction.commandName}`, error);
                 sendOwnerDM(client, `[Lỗi Slash Command] Lỗi khi thực thi Slash Command \`${interaction.commandName}\` bởi ${interaction.user.tag}.`, error);
+                
                 if (interaction.replied || interaction.deferred) {
                     await interaction.followUp({ content: 'Đã xảy ra lỗi khi thực hiện lệnh này!', flags: MessageFlags.Ephemeral });
                 } else {
@@ -51,30 +56,20 @@ module.exports = {
         }
         // --- Xử lý Button và Select Menu Interactions ---
         else if (interaction.isButton() || interaction.isStringSelectMenu()) {
-            // Danh sách các customId mà handlers/interactionCreate.js nên BỎ QUA việc deferUpdate
-            // vì các lệnh tương ứng (viewskill, market, help, shop, starter selection, pvp, profile, learnskill) sẽ tự xử lý defer/update thông qua Collector của chúng.
             const skipDeferCustomIdPrefixes = [
-                'prev_page', 
-                'next_page', 
-                'close_skill_view', 
-                'market_', 
-                'help_', 
-                'shop_', 
-                'select_starter_', 
-                'pvp_', 
-                'profile_', 
-                'learnskill_', // THÊM TIỀN TỐ LEARNSKILL VÀO ĐÂY
+                'prev_page', 'next_page', 'close_skill_view', 'market_', 'help_', 
+                'shop_', 'select_starter_', 'pvp_', 'profile_', 'learnskill_', 'forget_skill_', 
             ];
-
-            // Kiểm tra xem customId có bắt đầu bằng bất kỳ tiền tố nào cần bỏ qua defer không
             const shouldSkipDefer = skipDeferCustomIdPrefixes.some(prefix => interaction.customId.startsWith(prefix));
 
-            // Chỉ deferUpdate nếu customId KHÔNG nằm trong danh sách bỏ qua
             if (!shouldSkipDefer) {
                 try {
                     await interaction.deferUpdate();
                 } catch (e) {
                     console.error(`[LỖI_DEFER] Không thể deferUpdate cho CustomID: ${interaction.customId}:`, e);
+                    // Lỗi ít nghiêm trọng: ghi log
+                    logErrorToFile('DEFER_UPDATE_FAILED', interaction.user.tag, `Không thể deferUpdate cho CustomID: ${interaction.customId}`, e);
+                    
                     if (!interaction.replied && !interaction.deferred) { 
                         await interaction.reply({ content: 'Đã xảy ra lỗi khi xử lý yêu cầu của bạn (tương tác đã hết hạn hoặc đã được xử lý).', flags: MessageFlags.Ephemeral }).catch(err => console.error("Lỗi khi gửi phản hồi lỗi ngay lập tức sau khi deferUpdate thất bại:", err));
                     }
@@ -94,8 +89,6 @@ module.exports = {
                     if (mypokemonsCommand && mypokemonsCommand.handleInteraction) {
                         await mypokemonsCommand.handleInteraction(interaction, client, db);
                         handled = true;
-                    } else {
-                        console.warn(`[WARNING] Lệnh mypokemons hoặc handleInteraction của nó không tìm thấy cho CustomID: ${interaction.customId}`);
                     }
                 } 
                 else if (interaction.customId.startsWith('catch_ball_')) { 
@@ -103,38 +96,31 @@ module.exports = {
                     if (catchCommand && catchCommand.handleCatchInteraction) { 
                         await catchCommand.handleCatchInteraction(interaction, client, db);
                         handled = true;
-                    } else {
-                        console.warn(`[WARNING] Lệnh catch hoặc handleCatchInteraction của nó không tìm thấy cho CustomID: ${interaction.customId}`);
                     }
                 }
                 else if (interaction.customId.startsWith('pvp_')) { 
                     if (pvpCommandModule && pvpCommandModule.handleInteraction) { 
                         await pvpCommandModule.handleInteraction(interaction, client, db);
                         handled = true;
-                    } else {
-                        console.warn(`[WARNING] Lệnh pvp hoặc handleInteraction của nó không tìm thấy cho CustomID: ${interaction.customId}`);
                     }
                 }
-                // Thêm điều kiện cho learnskill
-                else if (interaction.customId.startsWith('learnskill_')) {
+                else if (interaction.customId.startsWith('learnskill_') || interaction.customId.startsWith('forget_skill_')) {
                     const learnskillCommand = client.commands.get('learnskill');
                     if (learnskillCommand && learnskillCommand.handleInteraction) {
                         await learnskillCommand.handleInteraction(interaction, client, db);
                         handled = true;
-                    } else {
-                        console.warn(`[WARNING] Lệnh learnskill hoặc handleInteraction của nó không tìm thấy cho CustomID: ${interaction.customId}`);
                     }
                 }
-                // KHÔNG CÓ LOGIC ĐỊNH TUYẾN LẠI CHO VIEWSKILL, MARKET, HELP HOẶC PROFILE Ở ĐÂY NỮA
-                // Vì Collector của chúng sẽ tự xử lý các tương tác của chúng.
-
                 if (!handled) {
                     console.warn(`[INTERACTION_WARNING] Tương tác '${interaction.customId}' từ ${interaction.user.tag} không được xử lý bởi bất kỳ handler định tuyến nào.`);
                 }
-
             } catch (error) {
                 console.error(`[COMPONENT_INTERACTION_ERROR] Lỗi khi xử lý tương tác component '${interaction.customId}':`, error);
+                
+                // Lỗi nghiêm trọng: ghi log VÀ gửi DM
+                logErrorToFile('COMPONENT_INTERACTION_EXECUTION_ERROR', interaction.user.tag, `Lỗi khi xử lý tương tác component: ${interaction.customId}`, error);
                 sendOwnerDM(client, `[Lỗi Tương tác Component] Lỗi khi xử lý tương tác component \`${interaction.customId}\` bởi ${interaction.user.tag}.`, error);
+                
                 if (interaction.deferred || interaction.replied) { 
                     await interaction.editReply({ content: 'Đã xảy ra lỗi khi xử lý yêu cầu của bạn. Vui lòng thử lại.', components: [] }).catch(err => console.error("Lỗi khi chỉnh sửa phản hồi lỗi ephemeral:", err));
                 }

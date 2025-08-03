@@ -22,17 +22,30 @@ async function sendPrefixedCommandReply(message, content, logContext) {
 
 /**
  * Gửi tin nhắn phản hồi cho một Interaction (có thể là ephemeral).
+ * Hàm đã được cập nhật để chấp nhận cả chuỗi và đối tượng payload.
  * @param {Interaction} interaction Đối tượng tương tác.
- * @param {string} content Nội dung tin nhắn.
+ * @param {string|object} payloadOrContent Nội dung tin nhắn (chuỗi) hoặc đối tượng payload đầy đủ.
  * @param {boolean} [ephemeral=false] Có phải là tin nhắn ephemeral không.
  * @param {string} logContext Ngữ cảnh log lỗi.
  */
-async function sendInteractionReply(interaction, content, ephemeral = false, logContext) {
+async function sendInteractionReply(interaction, payloadOrContent, ephemeral = false, logContext) {
     try {
-        if (interaction.deferred || interaction.replied) {
-            await interaction.followUp({ content, flags: ephemeral ? MessageFlags.Ephemeral : 0 });
+        let options;
+        if (typeof payloadOrContent === 'string') {
+            // Nếu là chuỗi, tạo một đối tượng payload đơn giản
+            options = { content: payloadOrContent, flags: ephemeral ? MessageFlags.Ephemeral : 0 };
+        } else if (typeof payloadOrContent === 'object' && payloadOrContent !== null) {
+            // Nếu là đối tượng, giả định đó là một payload hợp lệ và thêm cờ ephemeral
+            options = { ...payloadOrContent, flags: ephemeral ? MessageFlags.Ephemeral : 0 };
         } else {
-            await interaction.reply({ content, flags: ephemeral ? MessageFlags.Ephemeral : 0 });
+            // Trường hợp không hợp lệ, trả về một tin nhắn lỗi mặc định
+            options = { content: 'Đã xảy ra lỗi khi tạo nội dung tin nhắn.', flags: ephemeral ? MessageFlags.Ephemeral : 0 };
+        }
+
+        if (interaction.deferred || interaction.replied) {
+            await interaction.followUp(options);
+        } else {
+            await interaction.reply(options);
         }
     } catch (e) {
         console.error(`[LEARNSKILL_ERROR] Lỗi gửi tin nhắn tương tác (${logContext}) cho ${interaction.user.tag}:`, e);
@@ -195,10 +208,11 @@ module.exports = {
                         .where('id', userPokemonId)
                         .update({ learned_skill_ids: updatedLearnedSkills });
 
+                    const oldSkillDetailsForEmbed = currentLearnedSkillsDetails.find(s => s.skill_id === oldSkillIdToReplace);
                     const learnSuccessEmbed = new EmbedBuilder()
                         .setColor('#00FF00')
                         .setTitle(`✅ ${pokemonDisplayName} đã học kỹ năng mới!`)
-                        .setDescription(`**${pokemonDisplayName}** (ID: ${userPokemon.id}) đã quên **${currentLearnedSkillsDetails.find(s => s.skill_id === oldSkillIdToReplace).name}** và học thành công **${skillDetails.name}**!`)
+                        .setDescription(`**${pokemonDisplayName}** (ID: ${userPokemon.id}) đã quên **${oldSkillDetailsForEmbed.name}** và học thành công **${skillDetails.name}**!`)
                         .setTimestamp()
                         .setFooter({ text: `Tổng số kỹ năng: ${learnedSkills.length}/${MAX_SKILLS}` });
 
@@ -239,7 +253,7 @@ module.exports = {
                     const responseMessage = await message.channel.send({
                         embeds: [choiceEmbed],
                         components: actionRows,
-                        fetchReply: true 
+                        fetchReply: true
                     }).catch(e => {
                         console.error(`[LEARNSKILL_ERROR] Lỗi gửi tin nhắn chọn skill thay thế cho ${userId}:`, e);
                         sendOwnerDM(client, `[Lỗi Learnskill] Lỗi gửi tin nhắn chọn skill thay thế cho ${userId}.`, e);
@@ -256,8 +270,10 @@ module.exports = {
 
                         if (i.customId.startsWith('cancel_learn_')) {
                             collector.stop('cancel');
+                            // Sửa lỗi: Gọi hàm sendInteractionReply với chuỗi
                             await sendInteractionReply(i, `Đã hủy bỏ việc học kỹ năng mới cho **${pokemonDisplayName}**.`, false, 'learnskill_cancel_reply');
-                            await editMessageSafe(responseMessage, { embeds: [], components: [] }, 'learnskill_cancel_edit_original');
+                            // Sửa lỗi: Thêm `content` để tránh lỗi tin nhắn trống khi chỉnh sửa tin nhắn gốc
+                            await editMessageSafe(responseMessage, { content: 'Phiên học kỹ năng đã kết thúc.', embeds: [], components: [] }, 'learnskill_cancel_edit_original');
                             return;
                         }
 
@@ -310,8 +326,10 @@ module.exports = {
                             .setFooter({ text: `Tổng số kỹ năng: ${currentLearnedSkills.length}/${MAX_SKILLS}` });
 
                         collector.stop('success');
+                        // Sửa lỗi chính: Truyền một đối tượng payload hợp lệ cho hàm sendInteractionReply
                         await sendInteractionReply(i, { embeds: [learnSuccessEmbed], components: [] }, false, 'learnskill_success_edit_reply');
-                        await editMessageSafe(responseMessage, { embeds: [], components: [] }, 'learnskill_success_edit_original');
+                        // Sửa lỗi: Thêm `content` để tránh lỗi tin nhắn trống khi chỉnh sửa tin nhắn gốc
+                        await editMessageSafe(responseMessage, { content: 'Phiên học kỹ năng đã hoàn tất.', embeds: [], components: [] }, 'learnskill_success_edit_original');
                     });
 
                     collector.on('end', async (collected, reason) => {
@@ -322,9 +340,6 @@ module.exports = {
                                 components: []
                             }, 'learnskill_timeout_edit_message');
                         }
-                        // Nếu collector dừng vì 'cancel' hoặc 'success' hoặc 'error',
-                        // các tin nhắn đã được xử lý bởi các hàm sendInteractionReply/editMessageSafe
-                        // nên không cần làm gì thêm ở đây.
                     });
 
                     return;
@@ -338,6 +353,4 @@ module.exports = {
             await sendPrefixedCommandReply(message, `<@${userId}> Đã xảy ra lỗi khi cố gắng dạy kỹ năng. Vui lòng thử lại sau.`, 'learnskill_general_error');
         }
     },
-    // Nếu bạn có Slash Command cho learnskill, bạn sẽ cần một handleInteraction ở đây
-    // async handleInteraction(interaction, client, db) { ... }
 };

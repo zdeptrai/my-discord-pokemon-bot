@@ -1,6 +1,42 @@
 // utils/errors/errorReporter.js
-
 const { EmbedBuilder } = require('discord.js');
+const fs = require('fs/promises');
+const path = require('path');
+
+// Định nghĩa đường dẫn tới file log
+const logFilePath = path.join(__dirname, '..', '..', 'bot-errors.log');
+
+/**
+ * Ghi thông tin lỗi vào một file log.
+ * @param {string} errorType Loại lỗi (ví dụ: 'SLASH_COMMAND_NOT_FOUND').
+ * @param {string | null} userTag Tên người dùng gây ra lỗi. Sử dụng null nếu không có.
+ * @param {string} errorMessage Thông điệp lỗi.
+ * @param {Error|any} [errorObject] Đối tượng lỗi đầy đủ để trích xuất stack trace.
+ */
+async function logErrorToFile(errorType, userTag, errorMessage, errorObject) {
+    const timestamp = new Date().toISOString();
+    let logContent = `[${timestamp}] [${errorType}]`;
+
+    if (userTag) {
+        logContent += ` bởi ${userTag}`;
+    }
+
+    logContent += `\nLỗi: ${errorMessage}`;
+
+    if (errorObject && errorObject.stack) {
+        logContent += `\nStack Trace:\n${errorObject.stack}`;
+    } else if (errorObject) {
+        logContent += `\nChi tiết: ${JSON.stringify(errorObject, null, 2)}`;
+    }
+
+    logContent += '\n' + '='.repeat(50) + '\n';
+
+    try {
+        await fs.appendFile(logFilePath, logContent, 'utf8');
+    } catch (fileError) {
+        console.error(`[LỖI_GHI_FILE] Không thể ghi log vào file:`, fileError);
+    }
+}
 
 /**
  * Gửi tin nhắn DM chứa thông báo lỗi đến chủ bot.
@@ -33,4 +69,4 @@ async function sendOwnerDM(client, messageContent, error) {
     }
 }
 
-module.exports = { sendOwnerDM };
+module.exports = { sendOwnerDM, logErrorToFile };

@@ -90,21 +90,12 @@ module.exports = {
                 return;
             }
 
+            // Ghi nhận bán thành công mà không trừ vật phẩm khỏi kho
             await db.transaction(async trx => {
-                await trx('user_inventory_items')
-                    .where({ user_discord_id: userId, item_id: itemIdToSell })
-                    .decrement('quantity', quantityToSell);
-
-                if (userItem.quantity - quantityToSell <= 0) {
-                    await trx('user_inventory_items')
-                        .where({ user_discord_id: userId, item_id: itemIdToSell })
-                        .del();
-                }
-
                 const [listing] = await trx('marketplace_listings').insert({
                     seller_discord_id: userId,
                     item_type: 'item',
-                    item_reference_id: itemIdToSell,
+                    item_reference_id: itemIdToSell, // Vẫn giữ nguyên item_id
                     quantity: quantityToSell,
                     price: price,
                     description: description || null,
@@ -117,7 +108,7 @@ module.exports = {
                     .setColor(0x00FF00)
                     .setTitle('🎉 Đăng bán Vật phẩm thành công!')
                     .setDescription(`Vật phẩm **${itemDetails.name}** (x${quantityToSell}) đã được đăng bán trên thị trường với giá **${price} Pokecoin**.\n` +
-                                    `Mã đăng bán của bạn là: \`${listing.listing_id}\``)
+                                     `Mã đăng bán của bạn là: \`${listing.listing_id}\``)
                     .addFields(
                         { name: 'Vật phẩm', value: `${itemDetails.name} (x${quantityToSell})`, inline: true },
                         { name: 'Giá', value: `${price} Pokecoin`, inline: true },
