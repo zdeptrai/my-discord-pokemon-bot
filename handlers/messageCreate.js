@@ -2,8 +2,7 @@
 const { Events, MessageFlags, Collection } = require('discord.js');
 const { isUserRegistered } = require('../utils/core/userUtils'); 
 const { deleteMessageWithTimeout } = require('../utils/core/commonUtils'); 
-// const { handleMessageResponse } = require('../events/messageResponses'); // Đã vô hiệu hóa
-const { sendOwnerDM } = require('../utils/errors/errorReporter'); 
+const { sendOwnerDM, logErrorToFile } = require('../utils/errors/errorReporter'); // Thêm logErrorToFile
 
 module.exports = {
     name: Events.MessageCreate,
@@ -13,9 +12,6 @@ module.exports = {
         const db = client.db;
 
         if (message.author.bot || message.webhookId) return;
-
-        // Đã xóa dòng gọi hàm handleMessageResponse và câu lệnh if liên quan
-        // vì hàm này đã bị vô hiệu hóa.
 
         if (!message.content.startsWith(client.config.PREFIX)) return;
 
@@ -29,20 +25,11 @@ module.exports = {
         }
 
         const userId = message.author.id;
-
-        try {
-            if (message.deletable && !message.flags.has(MessageFlags.Ephemeral) && !message.reference) {
-                await deleteMessageWithTimeout(message, 100, `User command: ${commandName}`);
-            }
-        } catch (error) {
-            console.error(`[DELETE_MESSAGE_ERROR] Không thể xóa tin nhắn lệnh '${message.id}' (Lệnh: ${commandName}):`, error.message);
-            sendOwnerDM(client, `[Lỗi Xóa Tin Nhắn] Bot không thể xóa tin nhắn lệnh '${message.id}' (Lệnh: ${commandName})`, error);
-        }
-
+        
         if (commandName !== 'start' && commandName !== 'help' && commandName !== 'setchannel' && commandName !== 'pvp' && commandName !== 'st' && commandName !== 'startev' && commandName !== 'roll') { 
             const registered = await isUserRegistered(userId, db); 
             if (!registered) {
-                await message.channel.send({
+                await message.reply({
                     content: `<@${userId}> Bạn chưa bắt đầu cuộc phiêu lưu của mình! Vui lòng sử dụng lệnh \`${client.config.PREFIX}start\` để đăng ký và bắt đầu.`,
                     flags: MessageFlags.Ephemeral 
                 }).catch(e => console.error("Could not send ephemeral reply to unregistered user message:", e));
@@ -65,7 +52,7 @@ module.exports = {
             const expirationTime = timestamps.get(message.author.id) + cooldownAmount;
 
             if (now < expirationTime) {
-                await message.channel.send({
+                await message.reply({
                     content: `<@${userId}> Vui lòng đợi thêm ${((expirationTime - now) / 1000).toFixed(1)} giây trước khi sử dụng lại lệnh \`${command.name}\`.`,
                     flags: MessageFlags.Ephemeral 
                 }).catch(e => console.error("Could not send ephemeral cooldown message:", e));
@@ -78,10 +65,15 @@ module.exports = {
 
         try {
             await command.execute(message, args, client, db); 
+
+            if (message.deletable && !message.flags.has(MessageFlags.Ephemeral) && !message.reference) {
+                await deleteMessageWithTimeout(message, 100, `User command: ${commandName}`);
+            }
         } catch (error) {
             console.error(`[COMMAND_EXECUTION_ERROR] Lỗi khi thực thi lệnh '${commandName}':`, error);
-            sendOwnerDM(client, `[Lỗi Thực Thi Lệnh] Lệnh: \`${commandName}\` bởi <@${userId}>`, error);
-            await message.channel.send({ 
+            // Ghi lỗi vào file log thay vì gửi DM
+            logErrorToFile('COMMAND_EXECUTION_ERROR', message.author.tag, `Lỗi khi thực thi lệnh '${commandName}'`, error); 
+            await message.reply({ 
                 content: `<@${userId}> Đã có lỗi xảy ra khi thực thi lệnh này! Vui lòng thử lại sau.`,
                 flags: MessageFlags.Ephemeral 
             }).catch(e => console.error("Could not send ephemeral error message:", e));

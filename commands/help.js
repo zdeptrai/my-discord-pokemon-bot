@@ -25,6 +25,7 @@ module.exports = {
             `\`${PREFIX}lskill\` - Học skill cho Pokemon.`,
             `\`${PREFIX}evolve\` - Tiến hóa Pokemon dạng thường.`,
             `\`${PREFIX}form\` - Tiến hóa Pokemon dạng đặc biệt.`,
+            `\`${PREFIX}useitem\` - Tăng chỉ số cho Pokemon.`,
             `\`${PREFIX}shop\` - Xem danh sách vật phẩm có trong cửa hàng.`,
             `\`${PREFIX}buy\` - Mua vật phẩm có trong cửa hàng.`,
             `\`${PREFIX}sell\` - Bán Pokemon cho Bot.`,
