@@ -1,6 +1,6 @@
 // commands/startev.js
 const { EmbedBuilder, MessageFlags } = require('discord.js');
-const eventManager = require('../events/eventManager'); // Import eventManager
+const eventManager = require('../utils/managers/eventManager'); // Import eventManager
 
 module.exports = {
     name: 'startev',

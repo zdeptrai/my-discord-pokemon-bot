@@ -2,7 +2,25 @@
 const { Events, MessageFlags, Collection } = require('discord.js');
 const { isUserRegistered } = require('../utils/core/userUtils'); 
 const { deleteMessageWithTimeout } = require('../utils/core/commonUtils'); 
-const { sendOwnerDM, logErrorToFile } = require('../utils/errors/errorReporter'); // Thêm logErrorToFile
+const { logErrorToFile } = require('../utils/errors/errorReporter'); 
+
+// --- ĐỊNH NGHĨA CÁC EMOJI TÙY CHỈNH DÙNG CHO BOT ---
+// Sử dụng mảng để lưu nhiều ID emoji.
+// Bạn có thể lấy ID emoji bằng cách gõ "\:emoji_name:" trong Discord.
+const everyoneEmojis = ['✅', '🎉', '📢']; // Emoji cho @everyone
+const botMentionEmojis = ['🤖', '👋', '👀']; // Emoji khi tag bot
+// --- KẾT THÚC ĐỊNH NGHĨA ---
+
+// Hàm để phản ứng với nhiều emoji
+async function reactWithEmojis(message, emojis) {
+    for (const emoji of emojis) {
+        try {
+            await message.react(emoji);
+        } catch (error) {
+            console.error(`[EMOJI_REACTION_ERROR] Không thể phản ứng với emoji "${emoji}":`, error);
+        }
+    }
+}
 
 module.exports = {
     name: Events.MessageCreate,
@@ -12,6 +30,15 @@ module.exports = {
         const db = client.db;
 
         if (message.author.bot || message.webhookId) return;
+
+        // Phản ứng emoji khi có @everyone hoặc tag bot
+        if (message.mentions.everyone) {
+            await reactWithEmojis(message, everyoneEmojis);
+        }
+        
+        if (message.mentions.has(client.user)) {
+            await reactWithEmojis(message, botMentionEmojis);
+        }
 
         if (!message.content.startsWith(client.config.PREFIX)) return;
 
@@ -71,7 +98,6 @@ module.exports = {
             }
         } catch (error) {
             console.error(`[COMMAND_EXECUTION_ERROR] Lỗi khi thực thi lệnh '${commandName}':`, error);
-            // Ghi lỗi vào file log thay vì gửi DM
             logErrorToFile('COMMAND_EXECUTION_ERROR', message.author.tag, `Lỗi khi thực thi lệnh '${commandName}'`, error); 
             await message.reply({ 
                 content: `<@${userId}> Đã có lỗi xảy ra khi thực thi lệnh này! Vui lòng thử lại sau.`,

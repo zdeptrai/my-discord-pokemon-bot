@@ -1,4 +1,4 @@
-// events/eventManager.js
+// utils/managers/eventManager.js
 // File này đã được chuyển từ utils/ sang events/ để quản lý tập trung các logic liên quan đến sự kiện.
 
 // Đối tượng lưu trữ trạng thái của sự kiện
