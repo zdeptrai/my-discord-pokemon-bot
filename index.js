@@ -10,6 +10,7 @@ const { sendOwnerDM } = require('./utils/errors/errorReporter');
 const { loadCommands } = require('./utils/loaders/commandLoader');
 const { loadDiscordEventHandlers } = require('./utils/loaders/eventLoader'); 
 const { setupCleanupHandlers } = require('./utils/managers/cleanupManager'); 
+const { startSpawnManager } = require('./utils/managers/spawnManager'); // Đã thêm: Import spawn manager
 
 // Khởi tạo client và config
 const client = new Client({
@@ -35,11 +36,9 @@ const { db } = require('./db');
 client.db = db; // Gán db vào client để dễ dàng truy cập trong các module khác
 
 // --- ĐĂNG NHẬP BOT TRƯỚC HẾT ---
-// Sau đó, khi bot sẵn sàng, nó sẽ chạy các hàm khởi tạo khác
 client.login(process.env.DISCORD_TOKEN);
 
 // --- TẢI CÁC TÁC VỤ KHI BOT SẴN SÀNG ---
-// Tất cả các tác vụ khởi tạo đều nằm trong sự kiện 'ready' để đảm bảo bot đã đăng nhập
 client.once('ready', async () => {
     console.log(`[BOT_CORE] ${client.user.tag} đã sẵn sàng!`);
 
@@ -72,14 +71,19 @@ client.once('ready', async () => {
             activities: [{
                 name: client.config.BOT_STATUS_MESSAGE,
                 type: statusType,
-                url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ' // URL chỉ cần thiết cho trạng thái STREAMING
+                url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ'
             }],
-            status: 'online' // Bạn có thể đặt là 'idle', 'dnd' (do not disturb), 'online'
+            status: 'online'
         });
         console.log(`[BOT_CORE] Đã cập nhật trạng thái bot thành công.`);
     } catch (error) {
         console.warn(`[BOT_CORE_WARN] Không thể đặt trạng thái bot:`, error);
     }
+
+    // --- Khởi động Spawn Manager ---
+    // Đây là bước quan trọng để kích hoạt tính năng spawn Pokémon
+    startSpawnManager(client, db); 
+    console.log(`[BOT_CORE] Đã khởi động Spawn Manager.`);
 
     // --- Setup các trình xử lý lỗi process và dọn dẹp ---
     setupCleanupHandlers(client, db);

@@ -1,4 +1,4 @@
-// utils/spwnManager.js
+// utils/manager/spawnManager.js
 
 const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, PermissionsBitField } = require('discord.js'); 
 const { sendOwnerDM } = require('../errors/errorReporter'); // Import sendOwnerDM
