@@ -1,8 +1,9 @@
 // handlers/interactionCreate.js
 const { Events, Collection, MessageFlags } = require('discord.js');
-const { sendOwnerDM, logErrorToFile } = require('../utils/errors/errorReporter'); // Cập nhật import
+const { sendOwnerDM, logErrorToFile } = require('../utils/errors/errorReporter');
 const starterSelectionModule = require('../interactions/handleStarterSelection'); 
 const pvpCommandModule = require('../commands/pvp'); 
+const { updateUserRole, getOrCreateUserProfile, getRoleByLevelAndPath } = require('../utils/managers/xpManager');
 
 module.exports = {
     name: Events.InteractionCreate,
@@ -13,7 +14,6 @@ module.exports = {
 
             if (!command) {
                 console.error(`[ERROR] Không tìm thấy Slash Command ${interaction.commandName}.`);
-                // Lỗi ít nghiêm trọng: ghi log
                 logErrorToFile('SLASH_COMMAND_NOT_FOUND', interaction.user.tag, `Không tìm thấy Slash Command ${interaction.commandName}.`, null);
                 return;
             }
@@ -43,7 +43,6 @@ module.exports = {
             } catch (error) {
                 console.error(`[SLASH_COMMAND_ERROR] Lỗi khi thực thi Slash Command ${interaction.commandName}:`, error);
                 
-                // Lỗi nghiêm trọng: ghi log VÀ gửi DM
                 logErrorToFile('SLASH_COMMAND_EXECUTION_ERROR', interaction.user.tag, `Lỗi khi thực thi Slash Command ${interaction.commandName}`, error);
                 sendOwnerDM(client, `[Lỗi Slash Command] Lỗi khi thực thi Slash Command \`${interaction.commandName}\` bởi ${interaction.user.tag}.`, error);
                 
@@ -60,14 +59,15 @@ module.exports = {
                 'prev_page', 'next_page', 'close_skill_view', 'market_', 'help_', 
                 'shop_', 'select_starter_', 'pvp_', 'profile_', 'learnskill_', 'forget_skill_', 
             ];
+            
+            const pathSelectorPrefixes = ['path_tien', 'path_ma'];
             const shouldSkipDefer = skipDeferCustomIdPrefixes.some(prefix => interaction.customId.startsWith(prefix));
 
-            if (!shouldSkipDefer) {
+            if (!shouldSkipDefer && !pathSelectorPrefixes.includes(interaction.customId)) {
                 try {
                     await interaction.deferUpdate();
                 } catch (e) {
                     console.error(`[LỖI_DEFER] Không thể deferUpdate cho CustomID: ${interaction.customId}:`, e);
-                    // Lỗi ít nghiêm trọng: ghi log
                     logErrorToFile('DEFER_UPDATE_FAILED', interaction.user.tag, `Không thể deferUpdate cho CustomID: ${interaction.customId}`, e);
                     
                     if (!interaction.replied && !interaction.deferred) { 
@@ -80,7 +80,46 @@ module.exports = {
             let handled = false;
 
             try {
-                if (interaction.customId.startsWith('select_starter_')) {
+                // Thêm logic xử lý nút bấm chọn lối đi tu luyện
+                if (interaction.customId === 'path_tien' || interaction.customId === 'path_ma') {
+                    // Lấy ID của người đã gửi tin nhắn gốc mà bot đang trả lời
+                    const originalAuthorId = interaction.message.reference?.messageId ? (await interaction.channel.messages.fetch(interaction.message.reference.messageId)).author.id : null;
+
+                    // Nếu không lấy được ID hoặc người tương tác không phải là người gửi tin nhắn gốc
+                    if (originalAuthorId === null || interaction.user.id !== originalAuthorId) {
+                        return interaction.reply({ 
+                            content: 'Bạn không phải là người đã bắt đầu cuộc trò chuyện này. Vui lòng gửi tin nhắn của riêng bạn để nhận nút bấm.',
+                            flags: MessageFlags.Ephemeral 
+                        });
+                    }
+
+                    const userId = interaction.user.id;
+                    const guildId = interaction.guild.id;
+                    const path = interaction.customId.replace('path_', '');
+
+                    await db('user_profiles')
+                        .where({ user_id: userId, guild_id: guildId })
+                        .update({ path_type: path });
+
+                    const userProfile = await getOrCreateUserProfile(userId, guildId, db);
+                    const member = await interaction.guild.members.fetch(userId);
+                    if (member) {
+                        await updateUserRole(member, userProfile.level, path);
+                    }
+
+                    const pathName = path === 'tien' ? 'Tu Tiên' : 'Tu Ma';
+                    const roleConfig = getRoleByLevelAndPath(userProfile.level, path);
+                    const roleName = roleConfig ? roleConfig.name : 'Vô Danh';
+
+                    await interaction.update({
+                        content: `**<@${userId}>** đã chọn con đường **${pathName}**! Hành trình của bạn bắt đầu với cảnh giới **${roleName}**.`,
+                        embeds: [],
+                        components: []
+                    });
+                    
+                    handled = true;
+                }
+                else if (interaction.customId.startsWith('select_starter_')) {
                     await starterSelectionModule.handleStarterSelection(interaction, db); 
                     handled = true;
                 } 
@@ -117,7 +156,6 @@ module.exports = {
             } catch (error) {
                 console.error(`[COMPONENT_INTERACTION_ERROR] Lỗi khi xử lý tương tác component '${interaction.customId}':`, error);
                 
-                // Lỗi nghiêm trọng: ghi log VÀ gửi DM
                 logErrorToFile('COMPONENT_INTERACTION_EXECUTION_ERROR', interaction.user.tag, `Lỗi khi xử lý tương tác component: ${interaction.customId}`, error);
                 sendOwnerDM(client, `[Lỗi Tương tác Component] Lỗi khi xử lý tương tác component \`${interaction.customId}\` bởi ${interaction.user.tag}.`, error);
                 

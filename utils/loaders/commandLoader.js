@@ -1,19 +1,14 @@
-// utils/loaders/commandLoader.js
+// utils/loader/commandsLoader
 const fs = require('node:fs');
 const path = require('node:path');
-const { Collection } = require('discord.js');
 const { sendOwnerDM } = require('../errors/errorReporter'); 
 
 /**
- * Tải tất cả các lệnh từ thư mục 'commands' và lưu vào client.commands.
+ * Tải tất cả các lệnh từ một thư mục cụ thể và thêm vào client.commands.
  * @param {object} client Đối tượng Discord client.
- * @param {string} commandsPath Đường dẫn đến thư mục commands.
+ * @param {string} commandsPath Đường dẫn đến thư mục commands cần tải.
  */
 function loadCommands(client, commandsPath) {
-    client.commands = new Collection();
-    client.cooldowns = new Collection(); 
-    client.slashCooldowns = new Collection(); 
-
     if (fs.existsSync(commandsPath)) {
         const commandFiles = fs.readdirSync(commandsPath).filter(file => file.endsWith('.js'));
 
@@ -36,7 +31,7 @@ function loadCommands(client, commandsPath) {
                 sendOwnerDM(client, `[Lỗi Tải Lệnh] Bot không thể tải lệnh từ file: ${file}`, error);
             }
         }
-        console.log(`[INFO] Đã tải ${client.commands.size} lệnh.`);
+        console.log(`[INFO] Đã tải ${commandFiles.length} lệnh từ ${commandsPath}. Tổng số lệnh hiện tại: ${client.commands.size}`);
     } else {
         console.warn(`[WARNING] Thư mục 'commands' không tồn tại tại ${commandsPath}. Không có lệnh nào được tải.`);
     }

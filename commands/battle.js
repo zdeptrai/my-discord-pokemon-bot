@@ -22,7 +22,7 @@ const {
 module.exports = {
     name: 'battle',
     description: 'Chiến đấu với Pokémon hoang dã để kiếm kinh nghiệm và Pokecoin!',
-    aliases: ['b', 'fight'],
+    aliases: ['éthfgvm', 'fight'],
     cooldown: 6,
 
     async execute(message, args, client) {

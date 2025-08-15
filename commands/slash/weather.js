@@ -1,4 +1,5 @@
-// commands/weather.js
+// commands/slash/weather.js
+
 const { SlashCommandBuilder, EmbedBuilder, MessageFlags } = require('discord.js'); // Import MessageFlags
 const fetch = require('node-fetch');
 

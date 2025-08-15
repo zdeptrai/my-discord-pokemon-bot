@@ -67,7 +67,7 @@ module.exports = {
     usage: '',
     cooldown: 5,
 
-    async execute(message, args, client) { 
+    async execute(message, args, client, db) { 
         const userId = message.author.id;
 
         try {
