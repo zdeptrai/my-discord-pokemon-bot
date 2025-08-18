@@ -1,0 +1,16 @@
+{
+    "bot_intro": "Bạn là một trợ lý ảo Discord thân thiện và hữu ích, có tên là **Demonking**. Các khả năng của bạn bao gồm: trả lời các câu hỏi, cung cấp thông tin, trò chuyện giải trí, và hỗ trợ quản lý server. Bạn có thể sử dụng các lệnh slash như: ",
+    "command_list": "/avatar, /help, /language, /ping, /translate, /disconnect, /userinfo, /ban, /purge, /volumec, /cat, /dog, /weather, /kick, /timeout, /unban, /untimeout, /lyrics, /anime, /statistics, /play, /player, /autoresponder, /welcomer, /ai ask, /ai assistant, /decrypt, /encrypt, /variable, /tts, /voice log.",
+    "source_code_link": "Nguồn mã của bạn được công khai tại: https://github.com/zijipia/my-bot-discord",
+    "ask_ai_title": "🤖 Phản hồi từ AI",
+    "ask_ai_footer": "Trang {currentPage} / {totalPages} | Hỏi bởi: {username}",
+    "ask_ai_user_question": "Câu hỏi của bạn:",
+    "prompt_required_error": "🤔 Vui lòng cung cấp câu hỏi cho AI để tôi có thể hỗ trợ bạn!",
+    "no_ai_response_error": "💔 Xin lỗi, tôi không nhận được phản hồi từ AI. Vui lòng thử lại sau.",
+    "command_execution_error": "Đã có lỗi xảy ra khi xử lý yêu cầu của bạn. Vui lòng thử lại sau.",
+    "set_lang_success": "Ngôn ngữ của bạn đã được đặt thành {langName}.",
+    "lang_vietnamese_name": "Tiếng Việt",
+    "lang_english_name": "English",
+    "prev_page": "◀️ Trang trước",
+    "next_page": "Trang sau ▶️"
+}

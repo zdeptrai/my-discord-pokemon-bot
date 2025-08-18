@@ -4,6 +4,7 @@ const { sendOwnerDM, logErrorToFile } = require('../utils/errors/errorReporter')
 const starterSelectionModule = require('../interactions/handleStarterSelection'); 
 const pvpCommandModule = require('../commands/pvp'); 
 const { updateUserRole, getOrCreateUserProfile, getRoleByLevelAndPath } = require('../utils/managers/xpManager');
+const logger = require('../utils/logger'); // <-- Thêm dòng này
 
 module.exports = {
     name: Events.InteractionCreate,
@@ -13,7 +14,7 @@ module.exports = {
             const command = client.commands.get(interaction.commandName);
 
             if (!command) {
-                console.error(`[ERROR] Không tìm thấy Slash Command ${interaction.commandName}.`);
+                logger.error(`[SLASH_COMMAND_HANDLER_ERROR]`, `Không tìm thấy Slash Command ${interaction.commandName}.`); // Đã thay bằng logger.error
                 logErrorToFile('SLASH_COMMAND_NOT_FOUND', interaction.user.tag, `Không tìm thấy Slash Command ${interaction.commandName}.`, null);
                 return;
             }
@@ -41,7 +42,7 @@ module.exports = {
             try {
                 await command.execute(interaction, client, db); 
             } catch (error) {
-                console.error(`[SLASH_COMMAND_ERROR] Lỗi khi thực thi Slash Command ${interaction.commandName}:`, error);
+                logger.error(`[SLASH_COMMAND_HANDLER_ERROR]`, `Lỗi khi thực thi Slash Command ${interaction.commandName}:`, error); // Đã thay bằng logger.error
                 
                 logErrorToFile('SLASH_COMMAND_EXECUTION_ERROR', interaction.user.tag, `Lỗi khi thực thi Slash Command ${interaction.commandName}`, error);
                 sendOwnerDM(client, `[Lỗi Slash Command] Lỗi khi thực thi Slash Command \`${interaction.commandName}\` bởi ${interaction.user.tag}.`, error);
@@ -67,11 +68,11 @@ module.exports = {
                 try {
                     await interaction.deferUpdate();
                 } catch (e) {
-                    console.error(`[LỖI_DEFER] Không thể deferUpdate cho CustomID: ${interaction.customId}:`, e);
+                    logger.error(`[COMPONENT_INTERACTION_HANDLER_ERROR]`, `Không thể deferUpdate cho CustomID: ${interaction.customId}:`, e); // Đã thay bằng logger.error
                     logErrorToFile('DEFER_UPDATE_FAILED', interaction.user.tag, `Không thể deferUpdate cho CustomID: ${interaction.customId}`, e);
                     
                     if (!interaction.replied && !interaction.deferred) { 
-                        await interaction.reply({ content: 'Đã xảy ra lỗi khi xử lý yêu cầu của bạn (tương tác đã hết hạn hoặc đã được xử lý).', flags: MessageFlags.Ephemeral }).catch(err => console.error("Lỗi khi gửi phản hồi lỗi ngay lập tức sau khi deferUpdate thất bại:", err));
+                        await interaction.reply({ content: 'Đã xảy ra lỗi khi xử lý yêu cầu của bạn (tương tác đã hết hạn hoặc đã được xử lý).', flags: MessageFlags.Ephemeral }).catch(err => logger.error("Lỗi khi gửi phản hồi lỗi ngay lập tức sau khi deferUpdate thất bại:", err)); // Đã thay bằng logger.error
                     }
                     return; 
                 }
@@ -151,16 +152,16 @@ module.exports = {
                     }
                 }
                 if (!handled) {
-                    console.warn(`[INTERACTION_WARNING] Tương tác '${interaction.customId}' từ ${interaction.user.tag} không được xử lý bởi bất kỳ handler định tuyến nào.`);
+                    logger.warn(`[COMPONENT_INTERACTION_HANDLER_WARN]`, `Tương tác '${interaction.customId}' từ ${interaction.user.tag} không được xử lý bởi bất kỳ handler định tuyến nào.`); // Đã thay bằng logger.warn
                 }
             } catch (error) {
-                console.error(`[COMPONENT_INTERACTION_ERROR] Lỗi khi xử lý tương tác component '${interaction.customId}':`, error);
+                logger.error(`[COMPONENT_INTERACTION_HANDLER_ERROR]`, `Lỗi khi xử lý tương tác component '${interaction.customId}':`, error); // Đã thay bằng logger.error
                 
                 logErrorToFile('COMPONENT_INTERACTION_EXECUTION_ERROR', interaction.user.tag, `Lỗi khi xử lý tương tác component: ${interaction.customId}`, error);
                 sendOwnerDM(client, `[Lỗi Tương tác Component] Lỗi khi xử lý tương tác component \`${interaction.customId}\` bởi ${interaction.user.tag}.`, error);
                 
                 if (interaction.deferred || interaction.replied) { 
-                    await interaction.editReply({ content: 'Đã xảy ra lỗi khi xử lý yêu cầu của bạn. Vui lòng thử lại.', components: [] }).catch(err => console.error("Lỗi khi chỉnh sửa phản hồi lỗi ephemeral:", err));
+                    await interaction.editReply({ content: 'Đã xảy ra lỗi khi xử lý yêu cầu của bạn. Vui lòng thử lại.', components: [] }).catch(err => logger.error("Lỗi khi chỉnh sửa phản hồi lỗi ephemeral:", err)); // Đã thay bằng logger.error
                 }
             }
         }

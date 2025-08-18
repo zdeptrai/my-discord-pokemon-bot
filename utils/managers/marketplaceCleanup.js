@@ -1,6 +1,7 @@
 // utils/managers/marketplaceCleanup.js
-const { db } = require('../../db');
+const { db } = require('../../db'); // <-- Giữ nguyên vì db đã được export từ file này
 const { EmbedBuilder } = require('discord.js');
+const logger = require('../logger'); // <-- Thêm dòng này
 
 const MARKETPLACE_FEE_PERCENTAGE = 0.10; // Phí 10%
 const CLEANUP_INTERVAL_MS = 10 * 60 * 1000; // Chạy mỗi 10 phút
@@ -8,7 +9,7 @@ const CLEANUP_INTERVAL_MS = 10 * 60 * 1000; // Chạy mỗi 10 phút
 let cleanupIntervalId = null;
 
 async function cleanupExpiredListings(client) {
-    console.log('[MARKETPLACE_CLEANUP] Bắt đầu kiểm tra các listing hết hạn...');
+    logger.info('[MARKETPLACE_CLEANUP]', 'Bắt đầu kiểm tra các listing hết hạn...'); // Thay thế console.log
     const now = new Date();
 
     try {
@@ -18,11 +19,11 @@ async function cleanupExpiredListings(client) {
             .select('*');
 
         if (expiredListings.length === 0) {
-            console.log('[MARKETPLACE_CLEANUP] Không có listing nào hết hạn.');
+            logger.info('[MARKETPLACE_CLEANUP]', 'Không có listing nào hết hạn.'); // Thay thế console.log
             return;
         }
 
-        console.log(`[MARKETPLACE_CLEANUP] Tìm thấy ${expiredListings.length} listing hết hạn.`);
+        logger.info('[MARKETPLACE_CLEANUP]', `Tìm thấy ${expiredListings.length} listing hết hạn.`); // Thay thế console.log
 
         for (const listing of expiredListings) {
             await db.transaction(async trx => {
@@ -57,7 +58,10 @@ async function cleanupExpiredListings(client) {
                                 const pokemonData = await db('pokemons').where({ pokedex_id: userPokemon.pokedex_id }).first();
                                 itemDisplayName = `${userPokemon.nickname || pokemonData.name} (Lv.${userPokemon.level})`;
                                 returnSuccess = true;
+                                logger.info('[MARKETPLACE_CLEANUP]', `Đã trả lại Pokémon ${itemDisplayName} (ID: ${listing.item_reference_id}) cho người bán ${sellerId}.`);
                             }
+                        } else {
+                            logger.warn('[MARKETPLACE_CLEANUP_WARN]', `Không tìm thấy user_pokemon với ID ${listing.item_reference_id} để trả lại cho listing ${listing.listing_id}.`);
                         }
                     } else if (listing.item_type === 'item') {
                         // Trả lại vật phẩm cho kho bằng cách tăng số lượng
@@ -74,11 +78,16 @@ async function cleanupExpiredListings(client) {
                                 created_at: new Date(),
                                 updated_at: new Date()
                             });
+                            logger.info('[MARKETPLACE_CLEANUP]', `Đã tạo bản ghi inventory mới và trả lại item ${listing.item_reference_id} (x${listing.quantity}) cho người bán ${sellerId}.`);
+                        } else {
+                             logger.info('[MARKETPLACE_CLEANUP]', `Đã tăng số lượng item ${listing.item_reference_id} (x${listing.quantity}) trong inventory của người bán ${sellerId}.`);
                         }
                         const itemDetails = await db('items').where({ item_id: listing.item_reference_id }).first();
                         if (itemDetails) {
                             itemDisplayName = `${itemDetails.name} (x${listing.quantity})`;
                             returnSuccess = true;
+                        } else {
+                            logger.warn('[MARKETPLACE_CLEANUP_WARN]', `Không tìm thấy chi tiết item với ID ${listing.item_reference_id} cho listing ${listing.listing_id}.`);
                         }
                     }
 
@@ -86,6 +95,8 @@ async function cleanupExpiredListings(client) {
                     await trx('marketplace_listings')
                         .where({ listing_id: listing.listing_id })
                         .del();
+                    logger.info('[MARKETPLACE_CLEANUP]', `Đã xóa listing ${listing.listing_id} khỏi database.`);
+
 
                     // 4. Gửi DM thông báo cho người bán
                     if (returnSuccess) {
@@ -102,39 +113,40 @@ async function cleanupExpiredListings(client) {
                                 )
                                 .setFooter({ text: 'Vật phẩm đã được trả lại vào kho của bạn.' });
                             await sellerDMChannel.send({ embeds: [embed] });
-                            console.log(`[MARKETPLACE_CLEANUP] Đã xử lý và gửi DM cho người bán ${sellerId} về listing ${listing.listing_id}.`);
+                            logger.info(`[MARKETPLACE_CLEANUP]`, `Đã xử lý và gửi DM cho người bán ${sellerId} về listing ${listing.listing_id}.`); // Thay thế console.log
                         } catch (dmError) {
-                            console.error(`[MARKETPLACE_CLEANUP_DM_ERROR] Không thể gửi DM cho người bán ${sellerId} về listing ${listing.listing_id}:`, dmError);
+                            logger.error(`[MARKETPLACE_CLEANUP_DM_ERROR]`, `Không thể gửi DM cho người bán ${sellerId} về listing ${listing.listing_id}:`, dmError); // Thay thế console.error
                         }
                     } else {
-                        console.warn(`[MARKETPLACE_CLEANUP] Không thể trả lại vật phẩm/Pokémon cho listing ${listing.listing_id}.`);
+                        logger.warn(`[MARKETPLACE_CLEANUP_WARN]`, `Không thể trả lại vật phẩm/Pokémon cho listing ${listing.listing_id}.`); // Thay thế console.warn
                     }
 
                 } catch (innerError) {
-                    console.error(`[MARKETPLACE_CLEANUP_TRANSACTION_ERROR] Lỗi khi xử lý listing ${listing.listing_id}:`, innerError);
+                    logger.error(`[MARKETPLACE_CLEANUP_TRANSACTION_ERROR]`, `Lỗi khi xử lý listing ${listing.listing_id} trong transaction:`, innerError); // Thay thế console.error
                 }
             });
         }
     } catch (error) {
-        console.error('[MARKETPLACE_CLEANUP_ERROR] Lỗi tổng quát trong quá trình dọn dẹp listing:', error);
+        logger.error('[MARKETPLACE_CLEANUP_ERROR]', 'Lỗi tổng quát trong quá trình dọn dẹp listing:', error); // Thay thế console.error
     }
-    console.log('[MARKETPLACE_CLEANUP] Kết thúc kiểm tra các listing hết hạn.');
+    logger.info('[MARKETPLACE_CLEANUP]', 'Kết thúc kiểm tra các listing hết hạn.'); // Thay thế console.log
 }
 
 function scheduleCleanup(client) {
-    console.log('[MARKETPLACE_CLEANUP] Hàm scheduleCleanup đang được gọi.');
+    logger.info('[MARKETPLACE_CLEANUP_MANAGER]', 'Hàm scheduleCleanup đang được gọi.'); // Thay thế console.log
     if (cleanupIntervalId) {
         clearInterval(cleanupIntervalId);
+        logger.info('[MARKETPLACE_CLEANUP_MANAGER]', 'Tác vụ dọn dẹp marketplace đã được xóa bỏ trước khi lên lịch lại.');
     }
     cleanupIntervalId = setInterval(() => cleanupExpiredListings(client), CLEANUP_INTERVAL_MS);
-    console.log(`[MARKETPLACE_CLEANUP] Tác vụ dọn dẹp marketplace đã được lên lịch chạy mỗi ${CLEANUP_INTERVAL_MS / (1000 * 60)} phút.`);
+    logger.info(`[MARKETPLACE_CLEANUP_MANAGER]`, `Tác vụ dọn dẹp marketplace đã được lên lịch chạy mỗi ${CLEANUP_INTERVAL_MS / (1000 * 60)} phút.`); // Thay thế console.log
 }
 
 function stopCleanup() {
     if (cleanupIntervalId) {
         clearInterval(cleanupIntervalId);
         cleanupIntervalId = null;
-        console.log('[MARKETPLACE_CLEANUP] Tác vụ dọn dẹp marketplace đã dừng.');
+        logger.info('[MARKETPLACE_CLEANUP_MANAGER]', 'Tác vụ dọn dẹp marketplace đã dừng.'); // Thay thế console.log
     }
 }
 
@@ -144,7 +156,6 @@ function getMarketplaceCleanupStatus() {
         cleanupIntervalMinutes: CLEANUP_INTERVAL_MS / (1000 * 60)
     };
 }
-
 
 module.exports = {
     cleanupExpiredListings,

@@ -1,4 +1,5 @@
 // utils/dame/battleCalculations.js
+const logger = require('../logger'); // <-- Thêm dòng này
 
 // Bảng ánh xạ hiệu quả hệ (Type Effectiveness)
 // Nguồn: Dựa trên quy tắc của Pokémon games (simplified for initial implementation)
@@ -85,13 +86,18 @@ const typeEffectiveness = {
 function getTypeEffectiveness(attackingType, defendingTypes) {
     let multiplier = 1.0;
     const atkTypeLower = attackingType.toLowerCase();
+    logger.debug('[TYPE_EFFECTIVENESS]', `Tính hiệu quả hệ: Tấn công: ${attackingType}, Phòng thủ: ${defendingTypes.join(', ')}`);
 
     for (const defType of defendingTypes) {
         const defTypeLower = defType.toLowerCase();
         if (typeEffectiveness[atkTypeLower] && typeEffectiveness[atkTypeLower][defTypeLower] !== undefined) {
             multiplier *= typeEffectiveness[atkTypeLower][defTypeLower];
+            logger.debug('[TYPE_EFFECTIVENESS]', `  - ${attackingType} vs ${defType}: Nhân ${typeEffectiveness[atkTypeLower][defTypeLower]}, Tổng: ${multiplier}`);
+        } else {
+            logger.debug('[TYPE_EFFECTIVENESS]', `  - Không có hiệu quả đặc biệt cho ${attackingType} vs ${defType}.`);
         }
     }
+    logger.debug('[TYPE_EFFECTIVENESS]', `Hệ số hiệu quả cuối cùng: ${multiplier}`);
     return multiplier;
 }
 
@@ -103,6 +109,8 @@ function getTypeEffectiveness(attackingType, defendingTypes) {
  * @returns {object} { damage: number, hit: boolean, crit: boolean, effectiveness: number }
  */
 function calculateDamage(attackerStats, defenderStats, skillData) {
+    logger.debug('[CALCULATE_DAMAGE_START]', `Tính toán sát thương: ${attackerStats.name} (${attackerStats.level}) dùng ${skillData.name} lên ${defenderStats.name} (${defenderStats.level})`);
+    
     let attackStat;
     let defenseStat;
     const skillPower = Number(skillData.power) || 0;
@@ -110,25 +118,32 @@ function calculateDamage(attackerStats, defenderStats, skillData) {
     const skillAccuracy = Number(skillData.accuracy) || 100;
 
     if (skillPower === 0 || skillCategory === 'Status') {
+        logger.debug('[CALCULATE_DAMAGE_SKIP]', `Skill "${skillData.name}" có Power 0 hoặc Category "Status". Sát thương: 0.`);
         return { damage: 0, hit: true, crit: false, effectiveness: 1.0 };
     }
 
     if (skillCategory === 'Special') {
         attackStat = attackerStats.special_attack;
         defenseStat = defenderStats.special_defense;
+        logger.debug('[CALCULATE_DAMAGE_CATEGORY]', `Skill "${skillData.name}" là Special. ATK: ${attackStat}, DEF: ${defenseStat}`);
     } else { // Mặc định là Physical
         attackStat = attackerStats.attack;
         defenseStat = defenderStats.defense;
+        logger.debug('[CALCULATE_DAMAGE_CATEGORY]', `Skill "${skillData.name}" là Physical. ATK: ${attackStat}, DEF: ${defenseStat}`);
     }
 
     attackStat = Math.max(1, Number(attackStat) || 1);
     defenseStat = Math.max(1, Number(defenseStat) || 1);
     const attackerLevel = Number(attackerStats.level) || 1;
+    logger.debug('[CALCULATE_DAMAGE_STATS]', `Level: ${attackerLevel}, Power: ${skillPower}, Attacker ATK: ${attackStat}, Defender DEF: ${defenseStat}`);
 
     const hitChance = Math.random() * 100;
     if (hitChance > skillAccuracy) {
+        logger.debug('[CALCULATE_DAMAGE_MISS]', `Skill "${skillData.name}" trượt! (Tỉ lệ trúng: ${skillAccuracy}%, Roll: ${hitChance.toFixed(2)}%)`);
         return { damage: 0, hit: false, crit: false, effectiveness: 1.0 };
     }
+    logger.debug('[CALCULATE_DAMAGE_HIT]', `Skill "${skillData.name}" trúng! (Tỉ lệ trúng: ${skillAccuracy}%, Roll: ${hitChance.toFixed(2)}%)`);
+
 
     const defenderTypes = [];
     if (defenderStats.type1) defenderTypes.push(defenderStats.type1);
@@ -136,6 +151,7 @@ function calculateDamage(attackerStats, defenderStats, skillData) {
     const effectivenessMultiplier = getTypeEffectiveness(skillData.type, defenderTypes);
 
     if (effectivenessMultiplier === 0) {
+        logger.debug('[CALCULATE_DAMAGE_IMMUNE]', `Skill "${skillData.name}" không có tác dụng do hiệu quả hệ (multiplier: 0).`);
         return { damage: 0, hit: true, crit: false, effectiveness: 0 };
     }
 
@@ -143,24 +159,35 @@ function calculateDamage(attackerStats, defenderStats, skillData) {
     if (attackerStats.type1 && attackerStats.type1.toLowerCase() === skillData.type.toLowerCase() ||
         attackerStats.type2 && attackerStats.type2.toLowerCase() === skillData.type.toLowerCase()) {
         stab = 1.5;
+        logger.debug('[CALCULATE_DAMAGE_STAB]', `STAB (Same-Type Attack Bonus) áp dụng (x1.5).`);
+    } else {
+        logger.debug('[CALCULATE_DAMAGE_STAB]', `Không áp dụng STAB.`);
     }
 
     let crit = 1;
     let isCrit = false;
-    if (Math.random() < 0.0625) {
+    const critChanceRoll = Math.random();
+    if (critChanceRoll < 0.0625) { // 6.25% cơ hội crit (1/16)
         crit = 1.5;
         isCrit = true;
+        logger.debug('[CALCULATE_DAMAGE_CRIT]', `Đòn đánh chí mạng! (x1.5) (Roll: ${critChanceRoll.toFixed(4)})`);
+    } else {
+        logger.debug('[CALCULATE_DAMAGE_CRIT]', `Không chí mạng. (Roll: ${critChanceRoll.toFixed(4)})`);
     }
 
-    const randomFactor = (Math.random() * (1.0 - 0.85) + 0.85);
+    const randomFactor = (Math.random() * (1.0 - 0.85) + 0.85); // Từ 0.85 đến 1.0
+    logger.debug('[CALCULATE_DAMAGE_RANDOM]', `Hệ số ngẫu nhiên: ${randomFactor.toFixed(4)}`);
 
     let damage = Math.floor(
         (((2 * attackerLevel / 5 + 2) * skillPower * attackStat / defenseStat) / 50 + 2) *
         stab * effectivenessMultiplier * crit * randomFactor
     );
 
+    damage = Math.max(1, damage); // Sát thương tối thiểu là 1
+    logger.debug('[CALCULATE_DAMAGE_RESULT]', `Sát thương cuối cùng gây ra: ${damage}. Hit: true, Crit: ${isCrit}, Effectiveness: ${effectivenessMultiplier}`);
+
     return {
-        damage: Math.max(1, damage),
+        damage: damage,
         hit: true,
         crit: isCrit,
         effectiveness: effectivenessMultiplier

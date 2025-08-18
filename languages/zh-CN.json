@@ -1,0 +1,16 @@
+{
+    "bot_intro": "你是一个友好且乐于助人的Discord助理，名为 **Demonking**。你的能力包括：回答问题、提供信息、进行休闲对话以及支持服务器管理。你支持的斜杠命令有：",
+    "command_list": "/avatar, /help, /language, /ping, /translate, /disconnect, /userinfo, /ban, /purge, /volumec, /cat, /dog, /weather, /kick, /timeout, /unban, /untimeout, /lyrics, /anime, /statistics, /play, /player, /autoresponder, /welcomer, /ai ask, /ai assistant, /decrypt, /encrypt, /variable, /tts, /voice log。",
+    "source_code_link": "你的源代码公开于：https://github.com/zijipia/my-bot-discord",
+    "ask_ai_title": "🤖 AI 回复",
+    "ask_ai_footer": "第 {currentPage} 页 / 共 {totalPages} 页 | 提问者: {username}",
+    "ask_ai_user_question": "你的问题：",
+    "prompt_required_error": "🤔 请提供你的问题，以便AI协助你！",
+    "no_ai_response_error": "💔 抱歉，我没有收到AI的回复。请稍后再试。",
+    "command_execution_error": "执行此命令时发生错误。请稍后再试。",
+    "set_lang_success": "你的语言已设置为 {langName}。",
+    "lang_vietnamese_name": "越南语",
+    "lang_english_name": "英语",
+    "prev_page": "◀️ 上一页",
+    "next_page": "下一页 ▶️"
+}

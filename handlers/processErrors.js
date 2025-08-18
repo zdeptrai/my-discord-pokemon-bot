@@ -1,5 +1,6 @@
 // handlers/processErrors.js
-const { sendOwnerDM } = require('../utils/errors/errorReporter'); // Cập nhật đường dẫn
+const { sendOwnerDM } = require('../utils/errors/errorReporter'); 
+const logger = require('../utils/logger'); // <-- Thêm dòng này
 
 module.exports = {
     name: 'processErrors', 
@@ -7,17 +8,20 @@ module.exports = {
 
     execute(client, db) { 
         process.on('unhandledRejection', (reason, promise) => {
-            console.error('[FATAL_ERROR] Unhandled Rejection at:', promise, 'reason:', reason);
-            sendOwnerDM(client, `[Lỗi Nghiêm Trọng] Unhandled Rejection phát hiện!`, reason instanceof Error ? reason : new Error(String(reason)));
+            logger.error('[FATAL_ERROR] Unhandled Rejection at:', promise, 'reason:', reason);
+            sendOwnerDM(client, `[Lỗi Nghiêm Trọng] Unhandled Rejection phát hiện!`, reason instanceof Error ? reason : new Error(String(reason)))
+                .catch(dmError => logger.error('[SEND_DM_ERROR]', 'Không thể gửi DM cho chủ bot về unhandledRejection:', dmError)); // Log nếu gửi DM thất bại
         });
 
         process.on('uncaughtException', (err) => {
-            console.error('[FATAL_ERROR] Uncaught Exception:', err);
+            logger.error('[FATAL_ERROR] Uncaught Exception:', err);
             sendOwnerDM(client, `[Lỗi Nghiêm Trọng] Uncaught Exception phát hiện! Bot sẽ tắt.`, err)
+                .catch(dmError => logger.error('[SEND_DM_ERROR]', 'Không thể gửi DM cho chủ bot về uncaughtException:', dmError)) // Log nếu gửi DM thất bại
                 .finally(() => {
+                    logger.info('[PROCESS_EXIT]', 'Đang tắt process do Uncaught Exception.');
                     process.exit(1);
                 });
         });
-        console.log('[INFO] Đã thiết lập các trình xử lý lỗi process.');
+        logger.info('[INFO] Đã thiết lập các trình xử lý lỗi process.');
     },
 };

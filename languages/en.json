@@ -1,0 +1,16 @@
+{
+    "bot_intro": "You are a helpful Discord bot named Demonking. Your capabilities include: answering questions, providing information, casual conversation, and server management support. You support slash commands like: ",
+    "command_list": "/avatar, /help, /language, /ping, /translate, /disconnect, /userinfo, /ban, /purge, /volumec, /cat, /dog, /weather, /kick, /timeout, /unban, /untimeout, /lyrics, /anime, /statistics, /play, /player, /autoresponder, /welcomer, /ai ask, /ai assistant, /decrypt, /encrypt, /variable, /tts, /voice log.",
+    "source_code_link": "Your source code is available at: https://github.com/zijipia/my-bot-discord",
+    "ask_ai_title": "🤖 AI Response",
+    "ask_ai_footer": "Page {currentPage} / {totalPages} | Asked by: {username}",
+    "ask_ai_user_question": "Your Question:",
+    "prompt_required_error": "🤔 Please provide a question for the AI to assist you!",
+    "no_ai_response_error": "💔 Sorry, I didn't get a response from the AI. Please try again later.",
+    "command_execution_error": "An error occurred while executing this command. Please try again later.",
+    "set_lang_success": "Your language has been set to {langName}.",
+    "lang_vietnamese_name": "Tiếng Việt",
+    "lang_english_name": "English",
+    "prev_page": "◀️ Previous Page",
+    "next_page": "Next Page ▶️"
+}

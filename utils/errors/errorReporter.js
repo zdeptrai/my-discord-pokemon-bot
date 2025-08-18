@@ -2,6 +2,7 @@
 const { EmbedBuilder } = require('discord.js');
 const fs = require('fs/promises');
 const path = require('path');
+const logger = require('../logger'); // <-- Thêm dòng này
 
 // Định nghĩa đường dẫn tới file log
 const logFilePath = path.join(__dirname, '..', '..', 'bot-errors.log');
@@ -33,8 +34,9 @@ async function logErrorToFile(errorType, userTag, errorMessage, errorObject) {
 
     try {
         await fs.appendFile(logFilePath, logContent, 'utf8');
+        // Không log INFO ở đây vì đây là chức năng ghi log, tránh vòng lặp vô hạn nếu logger tự gọi logErrorToFile
     } catch (fileError) {
-        console.error(`[LỖI_GHI_FILE] Không thể ghi log vào file:`, fileError);
+        logger.error(`[ERROR_REPORTER_ERROR]`, `Không thể ghi log vào file ${logFilePath}:`, fileError); // Thay thế console.error
     }
 }
 
@@ -47,7 +49,7 @@ async function logErrorToFile(errorType, userTag, errorMessage, errorObject) {
 async function sendOwnerDM(client, messageContent, error) {
     const ownerId = client.config.OWNER_DISCORD_ID;
     if (!ownerId) {
-        console.error("[ERROR_REPORTING] Không tìm thấy OWNER_DISCORD_ID trong config. Không thể gửi DM lỗi.");
+        logger.error("[ERROR_REPORTER_ERROR]", "Không tìm thấy OWNER_DISCORD_ID trong config. Không thể gửi DM lỗi."); // Thay thế console.error
         return;
     }
 
@@ -56,16 +58,17 @@ async function sendOwnerDM(client, messageContent, error) {
         if (owner) {
             let dmMessage = `**[THÔNG BÁO LỖI BOT]**\n${messageContent}`;
             if (error) {
-                const stackTrace = error.stack ? error.stack.substring(0, 1500) + (error.stack.length > 1500 ? '...' : '') : 'Không có stack trace.';
+                // Giới hạn độ dài stack trace để tránh vượt quá giới hạn ký tự của Discord DM
+                const stackTrace = error.stack ? error.stack.substring(0, 1500) + (error.stack.length > 1500 ? '\n...' : '') : 'Không có stack trace.';
                 dmMessage += `\n\`\`\`javascript\n${stackTrace}\n\`\`\``;
             }
             await owner.send(dmMessage);
-            console.log(`[ERROR_REPORTING] Đã gửi DM lỗi cho chủ bot (${owner.tag}).`);
+            logger.info(`[ERROR_REPORTER]`, `Đã gửi DM lỗi cho chủ bot (${owner.tag}).`); // Thay thế console.log
         } else {
-            console.warn(`[ERROR_REPORTING] Không tìm thấy người dùng chủ bot với ID: ${ownerId}.`);
+            logger.warn(`[ERROR_REPORTER_WARN]`, `Không tìm thấy người dùng chủ bot với ID: ${ownerId}.`); // Thay thế console.warn
         }
     } catch (dmError) {
-        console.error(`[ERROR_REPORTING] Lỗi khi gửi DM lỗi cho chủ bot:`, dmError);
+        logger.error(`[ERROR_REPORTER_ERROR]`, `Lỗi khi gửi DM lỗi cho chủ bot:`, dmError); // Thay thế console.error
     }
 }
 

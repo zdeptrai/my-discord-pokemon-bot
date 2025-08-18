@@ -1,6 +1,7 @@
 // utils/managers/xpManager.js
 
 const { EmbedBuilder } = require('discord.js');
+const logger = require('../logger'); // <-- Thêm dòng này
 
 // --- HỆ THỐNG CẤP ĐỘ VÀ VAI TRÒ TU LUYỆN ---
 // Bạn có thể thay đổi các giá trị này để phù hợp với bot của mình.
@@ -85,6 +86,7 @@ async function getOrCreateUserProfile(userId, guildId, db) {
             // path_type sẽ là NULL theo cấu trúc database hiện tại
         }).returning('*');
         profile = insertedRow;
+        logger.info('[PROFILE_MANAGER]', `Đã tạo hồ sơ người dùng mới cho ${userId} trong guild ${guildId}.`);
     }
     return profile;
 }
@@ -112,7 +114,7 @@ async function updateUserRole(member, level, pathType) {
     const newRoleConfig = getRoleByLevelAndPath(level, pathType);
 
     if (!newRoleConfig) {
-        console.warn(`[XP_MANAGER_WARN] Không tìm thấy vai trò cho cấp độ ${level} và con đường ${pathType}.`);
+        logger.warn(`[USER_ROLE_UPDATE_WARN]`, `Không tìm thấy vai trò cho cấp độ ${level} và con đường ${pathType}.`);
         return;
     }
 
@@ -120,7 +122,7 @@ async function updateUserRole(member, level, pathType) {
     let newRole = member.guild.roles.cache.find(role => role.name === newRoleConfig.name);
     if (!newRole) {
         try {
-            console.log(`[XP_MANAGER] Role "${newRoleConfig.name}" không tồn tại. Đang tạo...`);
+            logger.info(`[USER_ROLE_UPDATE]`, `Role "${newRoleConfig.name}" không tồn tại. Đang tạo...`);
             newRole = await member.guild.roles.create({
                 name: newRoleConfig.name,
                 color: newRoleConfig.color,
@@ -128,9 +130,9 @@ async function updateUserRole(member, level, pathType) {
                 position: member.guild.roles.cache.size - 1, // Đặt role ở gần trên cùng
                 reason: `Đã tự động tạo cho hệ thống tu luyện.`,
             });
-            console.log(`[XP_MANAGER] Role "${newRoleConfig.name}" đã được tạo thành công.`);
+            logger.info(`[USER_ROLE_UPDATE]`, `Role "${newRoleConfig.name}" đã được tạo thành công.`);
         } catch (error) {
-            console.error(`[XP_MANAGER_ERROR] Bot thiếu quyền 'MANAGE_ROLES' hoặc vai trò của bot không đủ cao để tạo role "${newRoleConfig.name}":`, error);
+            logger.error(`[USER_ROLE_UPDATE_ERROR]`, `Bot thiếu quyền 'MANAGE_ROLES' hoặc vai trò của bot không đủ cao để tạo role "${newRoleConfig.name}":`, error);
             return;
         }
     }
@@ -143,14 +145,17 @@ async function updateUserRole(member, level, pathType) {
 
         if (rolesToRemove.size > 0) {
             await member.roles.remove(rolesToRemove, `Đã lên cấp tu luyện mới: ${newRoleConfig.name}`);
+            logger.info(`[USER_ROLE_UPDATE]`, `Đã xóa các vai trò cũ cho ${member.user.tag}.`);
         }
 
         if (!member.roles.cache.has(newRole.id)) {
             await member.roles.add(newRole, `Đã lên cấp tu luyện: ${newRoleConfig.name}`);
-            console.log(`[XP_MANAGER] Đã gán vai trò "${newRoleConfig.name}" cho người dùng ${member.user.tag}.`);
+            logger.info(`[USER_ROLE_UPDATE]`, `Đã gán vai trò "${newRoleConfig.name}" cho người dùng ${member.user.tag}.`);
+        } else {
+             logger.debug(`[USER_ROLE_UPDATE_DEBUG]`, `Người dùng ${member.user.tag} đã có vai trò "${newRoleConfig.name}". Không cần gán lại.`);
         }
     } catch (error) {
-        console.error(`[XP_MANAGER_ERROR] Lỗi khi cập nhật vai trò cho người dùng ${member.user.tag}:`, error);
+        logger.error(`[USER_ROLE_UPDATE_ERROR]`, `Lỗi khi cập nhật vai trò cho người dùng ${member.user.tag}:`, error);
     }
 }
 
@@ -164,6 +169,11 @@ async function updateUserRole(member, level, pathType) {
 async function addXPAndCheckLevelUp(message, db) {
     const { author, guild } = message;
 
+    // Bỏ qua bot
+    if (author.bot) {
+        return;
+    }
+
     // Lấy hoặc tạo hồ sơ người dùng
     const userProfile = await getOrCreateUserProfile(author.id, guild.id, db);
     const now = new Date();
@@ -171,11 +181,13 @@ async function addXPAndCheckLevelUp(message, db) {
     // Kiểm tra thời gian hồi chiêu
     const lastXPTime = userProfile.last_xp_message_time ? new Date(userProfile.last_xp_message_time) : null;
     if (lastXPTime && (now - lastXPTime < XP_COOLDOWN_MS)) {
+        logger.debug(`[XP_MANAGER_DEBUG]`, `Người dùng ${author.tag} đang trong thời gian hồi chiêu XP. Bỏ qua.`);
         return; // Dừng lại nếu đang trong thời gian hồi chiêu
     }
 
     // Kiểm tra độ dài tin nhắn
     if (message.content.length < MIN_MESSAGE_LENGTH) {
+        logger.debug(`[XP_MANAGER_DEBUG]`, `Tin nhắn của ${author.tag} quá ngắn (${message.content.length} ký tự). Bỏ qua.`);
         return;
     }
 
@@ -196,6 +208,7 @@ async function addXPAndCheckLevelUp(message, db) {
         userProfile.level++;
         userProfile.xp = userProfile.xp - xpToNextLevel; // Giữ lại XP thừa
         leveledUp = true;
+        logger.info(`[XP_MANAGER]`, `Người dùng ${author.tag} đã lên cấp ${userProfile.level}!`);
     }
 
     // Cập nhật database
@@ -225,11 +238,18 @@ async function addXPAndCheckLevelUp(message, db) {
             )
             .setTimestamp();
 
-        await message.channel.send({ embeds: [embed] });
+        try {
+            await message.channel.send({ embeds: [embed] });
+            logger.info(`[XP_MANAGER]`, `Đã gửi thông báo lên cấp cho ${author.tag} ở kênh ${message.channel.name}.`);
+        } catch (embedError) {
+            logger.error(`[XP_MANAGER_ERROR]`, `Không thể gửi thông báo lên cấp cho ${author.tag} ở kênh ${message.channel.name}:`, embedError);
+        }
         
         const member = await guild.members.fetch(author.id);
         if (member) {
             await updateUserRole(member, userProfile.level, userProfile.path_type || 'tien');
+        } else {
+            logger.warn(`[XP_MANAGER_WARN]`, `Không tìm thấy thành viên Discord cho ID ${author.id} để cập nhật vai trò.`);
         }
     }
 }

@@ -1,7 +1,7 @@
 // utils/manager/spawnManager.js
-
 const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, PermissionsBitField } = require('discord.js'); 
 const { sendOwnerDM } = require('../errors/errorReporter'); // Import sendOwnerDM
+const logger = require('../logger'); // <-- Thêm dòng này. Đảm bảo đường dẫn đúng!
 
 let db; 
 let spawnInterval; 
@@ -51,7 +51,7 @@ async function getPokemonDetails(dbInstance, pokedexId, client) {
             base_hp: pokemon.hp 
         };
     } catch (error) {
-        console.error(`[SPAWN_MANAGER_ERROR] Lỗi khi lấy chi tiết Pokémon cho Pokedex ID ${pokedexId}:`, error);
+        logger.error(`[POKEMON_SPAWN_ERROR]`, `Lỗi khi lấy chi tiết Pokémon cho Pokedex ID ${pokedexId}:`, error); // Đã thay bằng logger.error
         sendOwnerDM(client, `[Lỗi Spawn Manager] Lỗi khi lấy chi tiết Pokémon cho Pokedex ID ${pokedexId}.`, error);
         return null;
     }
@@ -73,7 +73,7 @@ async function getRandomSpawnablePokemonPokedexId(client) {
             .select('pokedex_id');
 
         if (spawnablePokemons.length === 0) {
-            console.warn('[SPAWN_MANAGER_WARN] Không tìm thấy Pokémon nào hợp lệ để spawn. Vui lòng kiểm tra dữ liệu.');
+            logger.warn(`[POKEMON_SPAWN_WARN]`, `Không tìm thấy Pokémon nào hợp lệ để spawn. Vui lòng kiểm tra dữ liệu.`); // Đã thay bằng logger.warn
             sendOwnerDM(client, '[Cảnh báo Spawn Manager] Không tìm thấy Pokémon nào hợp lệ để spawn.', null);
             return null;
         }
@@ -82,7 +82,7 @@ async function getRandomSpawnablePokemonPokedexId(client) {
         return spawnablePokemons[randomIndex].pokedex_id;
 
     } catch (error) {
-        console.error('[SPAWN_MANAGER_ERROR] Lỗi khi chọn Pokémon ngẫu nhiên để spawn:', error);
+        logger.error(`[POKEMON_SPAWN_ERROR]`, `Lỗi khi chọn Pokémon ngẫu nhiên để spawn:`, error); // Đã thay bằng logger.error
         sendOwnerDM(client, '[Lỗi Spawn Manager] Lỗi khi chọn Pokémon ngẫu nhiên để spawn.', error);
         return null;
     }
@@ -110,7 +110,7 @@ async function getAllPokeballs(dbInstance, client) {
 
         return pokeballs;
     } catch (error) {
-        console.error('[SPAWN_MANAGER_ERROR] Lỗi khi lấy danh sách Poké Balls:', error);
+        logger.error(`[POKEMON_SPAWN_ERROR]`, `Lỗi khi lấy danh sách Poké Balls:`, error); // Đã thay bằng logger.error
         sendOwnerDM(client, '[Lỗi Spawn Manager] Lỗi khi lấy danh sách Poké Balls.', error);
         return [];
     }
@@ -123,14 +123,14 @@ async function spawnPokemon(client) {
         .andWhere('spawn_channel_ids', '<>', '[]'); 
     
     if (guildsWithSpawnChannels.length === 0) {
-        console.log('[SPAWN_MANAGER] Không có server nào thiết lập kênh spawn. Bỏ qua spawn.');
+        logger.info(`[POKEMON_SPAWN_INFO]`, `Không có server nào thiết lập kênh spawn. Bỏ qua spawn.`); // Đã thay bằng logger.info
         return;
     }
 
     // Lấy danh sách tất cả Poké Balls một lần
     const availablePokeballs = await getAllPokeballs(db, client); 
     if (availablePokeballs.length === 0) {
-        console.warn('[SPAWN_MANAGER_WARN] Không tìm thấy Poké Balls nào trong database (kiểm tra cột "type" của bảng "items" có phải là "pokeball" không). Không thể spawn Pokémon với nút bắt.');
+        logger.warn(`[POKEMON_SPAWN_WARN]`, `Không tìm thấy Poké Balls nào trong database (kiểm tra cột "type" của bảng "items" có phải là "pokeball" không). Không thể spawn Pokémon với nút bắt.`); // Đã thay bằng logger.warn
         sendOwnerDM(client, '[Cảnh báo Spawn Manager] Không tìm thấy Poké Balls nào trong database để tạo nút bắt.', null);
         return;
     }
@@ -142,13 +142,13 @@ async function spawnPokemon(client) {
             const spawnChannels = JSON.parse(guildSetting.spawn_channel_ids);
 
             if (spawnChannels.length === 0) {
-                console.warn(`[SPAWN_MANAGER_WARN] Guild ${guildId} không có kênh spawn nào được cấu hình. Bỏ qua.`);
+                logger.warn(`[POKEMON_SPAWN_WARN]`, `Guild ${guildId} không có kênh spawn nào được cấu hình. Bỏ qua.`); // Đã thay bằng logger.warn
                 continue; // Bỏ qua guild này và đi đến guild tiếp theo
             } 
 
             const guild = client.guilds.cache.get(guildId);
             if (!guild) {
-                console.warn(`[SPAWN_MANAGER_WARN] Không tìm thấy Guild với ID ${guildId}. Bỏ qua.`);
+                logger.warn(`[POKEMON_SPAWN_WARN]`, `Không tìm thấy Guild với ID ${guildId}. Bỏ qua.`); // Đã thay bằng logger.warn
                 sendOwnerDM(client, `[Cảnh báo Spawn Manager] Không tìm thấy Guild với ID ${guildId}.`, null);
                 continue; // Bỏ qua guild này
             }
@@ -157,7 +157,7 @@ async function spawnPokemon(client) {
             const channel = guild.channels.cache.get(randomChannelId);
 
             if (!channel || channel.type !== 0 || !channel.isTextBased()) {
-                console.warn(`[SPAWN_MANAGER_WARN] Kênh ${randomChannelId} trong Guild ${guildId} không hợp lệ hoặc không phải kênh văn bản. Bỏ qua.`);
+                logger.warn(`[POKEMON_SPAWN_WARN]`, `Kênh ${randomChannelId} trong Guild ${guildId} không hợp lệ hoặc không phải kênh văn bản. Bỏ qua.`); // Đã thay bằng logger.warn
                 sendOwnerDM(client, `[Cảnh báo Spawn Manager] Kênh ${randomChannelId} trong Guild ${guildId} không hợp lệ hoặc không phải kênh văn bản.`, null);
                 continue; // Bỏ qua kênh này
             }
@@ -176,7 +176,7 @@ async function spawnPokemon(client) {
                 if (!botPermissionsInChannel.has(PermissionsBitField.Flags.EmbedLinks)) missingPerms.push('Embed Links');
                 if (!botPermissionsInChannel.has(PermissionsBitField.Flags.AttachFiles)) missingPerms.push('Attach Files');
 
-                console.warn(`[SPAWN_MANAGER_WARN] Bot thiếu quyền trong kênh ${channel.name} (${channel.id}) của Guild ${guild.name} (${guild.id}). Thiếu: ${missingPerms.join(', ')}. Bỏ qua spawn.`);
+                logger.warn(`[POKEMON_SPAWN_WARN]`, `Bot thiếu quyền trong kênh ${channel.name} (${channel.id}) của Guild ${guild.name} (${guild.id}). Thiếu: ${missingPerms.join(', ')}. Bỏ qua spawn.`); // Đã thay bằng logger.warn
                 sendOwnerDM(client, `[Cảnh báo Spawn Manager] Bot thiếu quyền trong kênh ${channel.name} (${channel.id}) của Guild ${guild.name} (${guild.id}). Thiếu: ${missingPerms.join(', ')}.`, null);
                 continue; // Bỏ qua kênh này và đi đến kênh/guild tiếp theo
             }
@@ -184,13 +184,13 @@ async function spawnPokemon(client) {
 
             const pokedexId = await getRandomSpawnablePokemonPokedexId(client); 
             if (!pokedexId) {
-                console.warn('[SPAWN_MANAGER_WARN] Không thể chọn Pokémon để spawn. Bỏ qua spawn.');
+                logger.warn(`[POKEMON_SPAWN_WARN]`, `Không thể chọn Pokémon để spawn. Bỏ qua spawn.`); // Đã thay bằng logger.warn
                 continue;
             }
 
             const pokemonDetails = await getPokemonDetails(db, pokedexId, client); 
             if (!pokemonDetails) {
-                console.error(`[SPAWN_MANAGER_ERROR] Không tìm thấy chi tiết Pokémon cho Pokedex ID ${pokedexId}. Bỏ qua spawn.`);
+                logger.error(`[POKEMON_SPAWN_ERROR]`, `Không tìm thấy chi tiết Pokémon cho Pokedex ID ${pokedexId}. Bỏ qua spawn.`); // Đã thay bằng logger.error
                 sendOwnerDM(client, `[Lỗi Spawn Manager] Không tìm thấy chi tiết Pokémon cho Pokedex ID ${pokedexId}.`, null);
                 continue;
             }
@@ -262,11 +262,11 @@ async function spawnPokemon(client) {
                 ...ivs 
             });
 
-            console.log(`[SPAWN] Đã spawn ${pokemonDetails.name} (ID: ${pokedexId}) Lv ${spawnLevel} trong kênh ${channel.name} (${channel.id}).`);
+            logger.info(`[POKEMON_SPAWN]`, `Đã spawn ${pokemonDetails.name} (ID: ${pokedexId}) Lv ${spawnLevel} trong kênh ${channel.name} (${channel.id}).`); // Đã thay bằng logger.info
 
         } catch (error) {
             // Bắt lỗi cụ thể cho từng guild/kênh và tiếp tục vòng lặp
-            console.error(`[SPAWN_MANAGER_ERROR] Lỗi khi spawn Pokémon trong Guild ${guildSetting.guild_id} (Kênh: ${guildSetting.spawn_channel_ids}):`, error);
+            logger.error(`[POKEMON_SPAWN_ERROR]`, `Lỗi khi spawn Pokémon trong Guild ${guildSetting.guild_id} (Kênh: ${guildSetting.spawn_channel_ids}):`, error); // Đã thay bằng logger.error
             sendOwnerDM(client, `[Lỗi Spawn Manager] Lỗi khi spawn Pokémon trong Guild ${guildSetting.guild_id}.`, error);
             // Không `throw error` ở đây, chỉ `continue` để xử lý guild tiếp theo
         }
@@ -287,18 +287,18 @@ async function cleanupExpiredSpawns(client) {
                     const message = await channel.messages.fetch(spawn.message_id);
                     if (message && message.deletable) {
                         await message.delete();
-                        console.log(`[CLEANUP] Đã xóa tin nhắn spawn cũ trong kênh ${channel.name} (ID: ${spawn.message_id}).`);
+                        logger.info(`[POKEMON_CLEANUP]`, `Đã xóa tin nhắn spawn cũ trong kênh ${channel.name} (ID: ${spawn.message_id}).`); // Đã thay bằng logger.info
                     }
                 } catch (msgError) {
-                    console.warn(`[SPAWN_MANAGER_WARN] Không thể xóa tin nhắn spawn ${spawn.message_id} (có thể đã bị xóa thủ công):`, msgError.message);
+                    logger.warn(`[POKEMON_CLEANUP_WARN]`, `Không thể xóa tin nhắn spawn ${spawn.message_id} (có thể đã bị xóa thủ công):`, msgError.message); // Đã thay bằng logger.warn
                     // sendOwnerDM(client, `[Cảnh báo Spawn Manager] Không thể xóa tin nhắn spawn ${spawn.message_id} (có thể đã bị xóa thủ công).`, msgError); 
                 }
             }
             await db('active_spawns').where('id', spawn.id).del(); 
-            console.log(`[CLEANUP] Đã xóa bản ghi spawn ID ${spawn.id} khỏi DB.`);
+            logger.info(`[POKEMON_CLEANUP]`, `Đã xóa bản ghi spawn ID ${spawn.id} khỏi DB.`); // Đã thay bằng logger.info
         }
     } catch (error) {
-        console.error('Lỗi trong quá trình dọn dẹp spawn đã hết hạn:', error);
+        logger.error(`[POKEMON_CLEANUP_ERROR]`, `Lỗi trong quá trình dọn dẹp spawn đã hết hạn:`, error); // Đã thay bằng logger.error
         sendOwnerDM(client, `[Lỗi Spawn Manager] Lỗi trong quá trình dọn dẹp spawn đã hết hạn.`, error);
     }
 }
@@ -313,13 +313,13 @@ function startSpawnManager(client, dbInstance) {
 
     setInterval(() => cleanupExpiredSpawns(client), SPAWN_INTERVAL_MS / 2); 
     
-    console.log(`[SPAWN_MANAGER] Đã khởi động quản lý spawn. Spawn mỗi ${SPAWN_INTERVAL_MS / 1000} giây.`);
+    logger.info(`[POKEMON_SPAWN_MANAGER]`, `Đã khởi động quản lý spawn. Spawn mỗi ${SPAWN_INTERVAL_MS / 1000} giây.`); // Đã thay bằng logger.info
 }
 
 function stopSpawnManager() {
     if (spawnInterval) {
         clearInterval(spawnInterval);
-        console.log('[SPAWN_MANAGER] Đã dừng quản lý spawn.');
+        logger.info(`[POKEMON_SPAWN_MANAGER]`, `Đã dừng quản lý spawn.`); // Đã thay bằng logger.info
     }
 }
 

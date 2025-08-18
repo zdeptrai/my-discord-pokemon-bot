@@ -1,6 +1,7 @@
 // utils/managers/cleanupManager.js
-const spawnManager = require('./spawnManager'); // Cập nhật đường dẫn (trong cùng thư mục managers)
-const { sendOwnerDM } = require('../errors/errorReporter'); // Cập nhật đường dẫn
+const spawnManager = require('./spawnManager'); 
+const { sendOwnerDM } = require('../errors/errorReporter'); 
+const logger = require('../logger'); // <-- Thêm dòng này
 
 /**
  * Đăng ký các trình xử lý sự kiện để dọn dẹp khi bot tắt.
@@ -9,14 +10,14 @@ const { sendOwnerDM } = require('../errors/errorReporter'); // Cập nhật đư
  */
 function setupCleanupHandlers(client, db) {
     const cleanup = async () => {
-        console.log('[SHUTDOWN] Đang tắt bot...');
+        logger.info('[BOT_SHUTDOWN]', 'Đang tắt bot...'); // Thay thế console.log
         spawnManager.stopSpawnManager();
         if (db) {
             await db.destroy();
-            console.log('[SHUTDOWN] Kết nối database đã đóng.');
+            logger.info('[DB_CONNECTION]', 'Kết nối database đã đóng.'); // Thay thế console.log
         }
         client.destroy();
-        console.log('[SHUTDOWN] Bot đã tắt sạch sẽ.');
+        logger.info('[BOT_SHUTDOWN]', 'Bot đã tắt sạch sẽ.'); // Thay thế console.log
         process.exit(0);
     };
 
@@ -24,16 +25,16 @@ function setupCleanupHandlers(client, db) {
     process.on('SIGTERM', cleanup);
 
     process.on('unhandledRejection', (reason, promise) => {
-        console.error('[FATAL_ERROR] Unhandled Rejection at:', promise, 'reason:', reason);
+        logger.fatal('[FATAL_ERROR]', 'Unhandled Rejection at:', promise, 'reason:', reason); // Thay thế console.error bằng logger.fatal
         sendOwnerDM(client, `[Lỗi Nghiêm Trọng] Unhandled Rejection phát hiện!`, reason instanceof Error ? reason : new Error(String(reason)));
     });
 
     process.on('uncaughtException', (err) => {
-        console.error('[FATAL_ERROR] Uncaught Exception:', err);
+        logger.fatal('[FATAL_ERROR]', 'Uncaught Exception:', err); // Thay thế console.error bằng logger.fatal
         sendOwnerDM(client, `[Lỗi Nghiêm Trọng] Uncaught Exception phát hiện! Bot sẽ tắt.`, err)
-                .finally(() => {
-                    process.exit(1);
-                });
+            .finally(() => {
+                process.exit(1);
+            });
     });
 }
 

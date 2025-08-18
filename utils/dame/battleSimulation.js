@@ -1,5 +1,6 @@
 // utils/dame/battleSimulation.js
 const { calculateDamage } = require('./battleCalculations');
+const logger = require('../logger'); // <-- Thêm dòng này
 
 /**
  * Mô phỏng một trận đấu đơn giản giữa người chơi và boss.
@@ -17,9 +18,20 @@ async function simulateBossBattle(userPokemon, bossPokemon, userSkillsData, boss
     const maxTurns = 50;
     let userSkillIndex = 0; // Index để theo dõi kỹ năng người chơi đang dùng (lặp lại 4 kỹ năng)
 
-    battleEvents.push({ type: 'start', userHp: userCurrentHp, bossHp: bossCurrentHp, userPokemonName: userPokemon.nickname || userPokemon.name, bossPokemonName: bossPokemon.name, userLevel: userPokemon.level, bossLevel: bossPokemon.level });
+    logger.debug('[BATTLE_SIMULATION_START]', `Bắt đầu mô phỏng: ${userPokemon.nickname || userPokemon.name} (Lv ${userPokemon.level}) vs ${bossPokemon.name} (Lv ${bossPokemon.level})`);
+    battleEvents.push({ 
+        type: 'start', 
+        userHp: userCurrentHp, 
+        bossHp: bossCurrentHp, 
+        userPokemonName: userPokemon.nickname || userPokemon.name, 
+        bossPokemonName: bossPokemon.name, 
+        userLevel: userPokemon.level, 
+        bossLevel: bossPokemon.level 
+    });
 
     for (let turn = 1; turn <= maxTurns; turn++) {
+        logger.debug('[BATTLE_SIMULATION_TURN]', `Lượt ${turn}: User HP: ${Math.max(0, userCurrentHp)}, Boss HP: ${Math.max(0, bossCurrentHp)}`);
+
         let firstAttacker;
         let secondAttacker;
         let firstSkill;
@@ -30,6 +42,7 @@ async function simulateBossBattle(userPokemon, bossPokemon, userSkillsData, boss
         // Lấy kỹ năng cho lượt hiện tại của người chơi (lặp lại qua 4 kỹ năng)
         const currentUserSkill = userSkillsData[userSkillIndex];
         userSkillIndex = (userSkillIndex + 1) % userSkillsData.length; 
+        logger.debug('[BATTLE_SIMULATION_SKILL_USER]', `Người chơi sẽ dùng kỹ năng: ${currentUserSkill.name}`);
 
         // Lấy kỹ năng có power cao nhất cho Boss (đã được sắp xếp ở bossDungeonLogic)
         // Nếu bossSkillsData rỗng (không có kỹ năng tấn công), lấy kỹ năng mặc định
@@ -40,6 +53,7 @@ async function simulateBossBattle(userPokemon, bossPokemon, userSkillsData, boss
             power: 150,
             accuracy: 90
         };
+        logger.debug('[BATTLE_SIMULATION_SKILL_BOSS]', `Boss sẽ dùng kỹ năng: ${currentBossSkill.name}`);
         
         // Quyết định lượt đi dựa trên chỉ số Tốc độ
         if (userPokemon.speed > bossPokemon.speed) {
@@ -58,6 +72,7 @@ async function simulateBossBattle(userPokemon, bossPokemon, userSkillsData, boss
                 firstAttackerSpeed: firstAttacker.speed, 
                 secondAttackerSpeed: secondAttacker.speed 
             });
+            logger.debug('[BATTLE_SIMULATION_ORDER]', `${firstAttackerName} (SPD: ${firstAttacker.speed}) tấn công trước ${secondAttackerName} (SPD: ${secondAttacker.speed}).`);
         } else if (bossPokemon.speed > userPokemon.speed) {
             firstAttacker = bossPokemon;
             firstSkill = currentBossSkill;
@@ -74,6 +89,7 @@ async function simulateBossBattle(userPokemon, bossPokemon, userSkillsData, boss
                 firstAttackerSpeed: firstAttacker.speed, 
                 secondAttackerSpeed: secondAttacker.speed 
             });
+            logger.debug('[BATTLE_SIMULATION_ORDER]', `${firstAttackerName} (SPD: ${firstAttacker.speed}) tấn công trước ${secondAttackerName} (SPD: ${secondAttacker.speed}).`);
         } else {
             // Nếu tốc độ bằng nhau, người chơi tấn công trước
             firstAttacker = userPokemon;
@@ -91,15 +107,18 @@ async function simulateBossBattle(userPokemon, bossPokemon, userSkillsData, boss
                 firstAttackerSpeed: firstAttacker.speed, 
                 secondAttackerSpeed: secondAttacker.speed 
             });
+            logger.debug('[BATTLE_SIMULATION_ORDER]', `${firstAttackerName} và ${secondAttackerName} có cùng tốc độ (${firstAttacker.speed}). ${firstAttackerName} tấn công trước.`);
         }
 
         // Lượt tấn công đầu tiên
-        const firstAttackResult = calculateDamage(firstAttacker, (firstAttacker === userPokemon ? bossPokemon : userPokemon), firstSkill);
+        const firstAttackTarget = (firstAttacker === userPokemon ? bossPokemon : userPokemon);
+        const firstAttackResult = calculateDamage(firstAttacker, firstAttackTarget, firstSkill);
         
         // Cập nhật HP và log sự kiện cho lượt tấn công đầu tiên
         if (firstAttacker === userPokemon) { // Người chơi tấn công boss
             if (firstAttackResult.hit) {
                 bossCurrentHp -= firstAttackResult.damage;
+                logger.debug('[BATTLE_SIMULATION_ATTACK]', `${firstAttackerName} (User) dùng ${firstSkill.name}, gây ${firstAttackResult.damage} sát thương lên ${secondAttackerName} (Boss). Boss còn ${Math.max(0, bossCurrentHp)} HP.`);
                 battleEvents.push({
                     type: 'attack',
                     turn: turn,
@@ -113,6 +132,7 @@ async function simulateBossBattle(userPokemon, bossPokemon, userSkillsData, boss
                     remainingHp: Math.max(0, bossCurrentHp)
                 });
             } else {
+                logger.debug('[BATTLE_SIMULATION_MISS]', `${firstAttackerName} (User) dùng ${firstSkill.name} nhưng trượt.`);
                 battleEvents.push({
                     type: 'miss',
                     turn: turn,
@@ -124,6 +144,7 @@ async function simulateBossBattle(userPokemon, bossPokemon, userSkillsData, boss
         } else { // Boss tấn công người chơi
             if (firstAttackResult.hit) {
                 userCurrentHp -= firstAttackResult.damage;
+                logger.debug('[BATTLE_SIMULATION_ATTACK]', `${firstAttackerName} (Boss) dùng ${firstSkill.name}, gây ${firstAttackResult.damage} sát thương lên ${secondAttackerName} (User). User còn ${Math.max(0, userCurrentHp)} HP.`);
                 battleEvents.push({
                     type: 'attack',
                     turn: turn,
@@ -137,6 +158,7 @@ async function simulateBossBattle(userPokemon, bossPokemon, userSkillsData, boss
                     remainingHp: Math.max(0, userCurrentHp)
                 });
             } else {
+                logger.debug('[BATTLE_SIMULATION_MISS]', `${firstAttackerName} (Boss) dùng ${firstSkill.name} nhưng trượt.`);
                 battleEvents.push({
                     type: 'miss',
                     turn: turn,
@@ -149,21 +171,25 @@ async function simulateBossBattle(userPokemon, bossPokemon, userSkillsData, boss
 
         // Kiểm tra kết thúc trận đấu sau lượt tấn công đầu tiên
         if (userCurrentHp <= 0) {
-            battleEvents.push({ type: 'end', winner: 'boss', userHp: 0, bossHp: bossCurrentHp });
+            logger.info('[BATTLE_SIMULATION_END]', `Trận đấu kết thúc ở lượt ${turn}: Boss thắng, User HP: 0.`);
+            battleEvents.push({ type: 'end', winner: 'boss', userHp: 0, bossHp: bossCurrentHp, userPokemonName: userPokemon.nickname || userPokemon.name, bossPokemonName: bossPokemon.name });
             return { userWin: false, events: battleEvents, userRemainingHp: 0, bossRemainingHp: bossCurrentHp };
         }
         if (bossCurrentHp <= 0) {
-            battleEvents.push({ type: 'end', winner: 'user', userHp: userCurrentHp, bossHp: 0 });
+            logger.info('[BATTLE_SIMULATION_END]', `Trận đấu kết thúc ở lượt ${turn}: User thắng, Boss HP: 0.`);
+            battleEvents.push({ type: 'end', winner: 'user', userHp: userCurrentHp, bossHp: 0, userPokemonName: userPokemon.nickname || userPokemon.name, bossPokemonName: bossPokemon.name });
             return { userWin: true, events: battleEvents, userRemainingHp: userCurrentHp, bossRemainingHp: 0 };
         }
 
         // Lượt tấn công thứ hai (nếu trận đấu chưa kết thúc)
-        const secondAttackResult = calculateDamage(secondAttacker, (secondAttacker === userPokemon ? bossPokemon : userPokemon), secondSkill);
+        const secondAttackTarget = (secondAttacker === userPokemon ? bossPokemon : userPokemon);
+        const secondAttackResult = calculateDamage(secondAttacker, secondAttackTarget, secondSkill);
         
         // Cập nhật HP và log sự kiện cho lượt tấn công thứ hai
         if (secondAttacker === userPokemon) { // Người chơi tấn công boss
             if (secondAttackResult.hit) {
                 bossCurrentHp -= secondAttackResult.damage;
+                logger.debug('[BATTLE_SIMULATION_ATTACK]', `${secondAttackerName} (User) dùng ${secondSkill.name}, gây ${secondAttackResult.damage} sát thương lên ${firstAttackerName} (Boss). Boss còn ${Math.max(0, bossCurrentHp)} HP.`);
                 battleEvents.push({
                     type: 'attack',
                     turn: turn,
@@ -177,6 +203,7 @@ async function simulateBossBattle(userPokemon, bossPokemon, userSkillsData, boss
                     remainingHp: Math.max(0, bossCurrentHp)
                 });
             } else {
+                logger.debug('[BATTLE_SIMULATION_MISS]', `${secondAttackerName} (User) dùng ${secondSkill.name} nhưng trượt.`);
                 battleEvents.push({
                     type: 'miss',
                     turn: turn,
@@ -188,6 +215,7 @@ async function simulateBossBattle(userPokemon, bossPokemon, userSkillsData, boss
         } else { // Boss tấn công người chơi
             if (secondAttackResult.hit) {
                 userCurrentHp -= secondAttackResult.damage;
+                logger.debug('[BATTLE_SIMULATION_ATTACK]', `${secondAttackerName} (Boss) dùng ${secondSkill.name}, gây ${secondAttackResult.damage} sát thương lên ${firstAttackerName} (User). User còn ${Math.max(0, userCurrentHp)} HP.`);
                 battleEvents.push({
                     type: 'attack',
                     turn: turn,
@@ -201,6 +229,7 @@ async function simulateBossBattle(userPokemon, bossPokemon, userSkillsData, boss
                     remainingHp: Math.max(0, userCurrentHp)
                 });
             } else {
+                logger.debug('[BATTLE_SIMULATION_MISS]', `${secondAttackerName} (Boss) dùng ${secondSkill.name} nhưng trượt.`);
                 battleEvents.push({
                     type: 'miss',
                     turn: turn,
@@ -213,22 +242,28 @@ async function simulateBossBattle(userPokemon, bossPokemon, userSkillsData, boss
 
         // Kiểm tra kết thúc trận đấu sau lượt tấn công thứ hai
         if (userCurrentHp <= 0) {
-            battleEvents.push({ type: 'end', winner: 'boss', userHp: 0, bossHp: bossCurrentHp });
+            logger.info('[BATTLE_SIMULATION_END]', `Trận đấu kết thúc ở lượt ${turn}: Boss thắng, User HP: 0.`);
+            battleEvents.push({ type: 'end', winner: 'boss', userHp: 0, bossHp: bossCurrentHp, userPokemonName: userPokemon.nickname || userPokemon.name, bossPokemonName: bossPokemon.name });
             return { userWin: false, events: battleEvents, userRemainingHp: 0, bossRemainingHp: bossCurrentHp };
         }
         if (bossCurrentHp <= 0) {
-            battleEvents.push({ type: 'end', winner: 'user', userHp: userCurrentHp, bossHp: 0 });
+            logger.info('[BATTLE_SIMULATION_END]', `Trận đấu kết thúc ở lượt ${turn}: User thắng, Boss HP: 0.`);
+            battleEvents.push({ type: 'end', winner: 'user', userHp: userCurrentHp, bossHp: 0, userPokemonName: userPokemon.nickname || userPokemon.name, bossPokemonName: bossPokemon.name });
             return { userWin: true, events: battleEvents, userRemainingHp: userCurrentHp, bossRemainingHp: 0 };
         }
     }
 
     // Nếu đạt giới hạn lượt
-    battleEvents.push({ type: 'end_max_turns', userHp: userCurrentHp, bossHp: bossCurrentHp });
+    logger.info('[BATTLE_SIMULATION_END]', `Trận đấu kết thúc sau ${maxTurns} lượt tối đa. User HP: ${Math.max(0, userCurrentHp)}, Boss HP: ${Math.max(0, bossCurrentHp)}.`);
+    battleEvents.push({ type: 'end_max_turns', userHp: userCurrentHp, bossHp: bossCurrentHp, userPokemonName: userPokemon.nickname || userPokemon.name, bossPokemonName: bossPokemon.name });
     if (userCurrentHp > bossCurrentHp) {
+        logger.info('[BATTLE_SIMULATION_RESULT]', `Người chơi thắng theo HP cao hơn sau ${maxTurns} lượt.`);
         return { userWin: true, events: battleEvents, userRemainingHp: userCurrentHp, bossRemainingHp: bossCurrentHp };
     } else if (bossCurrentHp > userCurrentHp) {
+        logger.info('[BATTLE_SIMULATION_RESULT]', `Boss thắng theo HP cao hơn sau ${maxTurns} lượt.`);
         return { userWin: false, events: battleEvents, userRemainingHp: userCurrentHp, bossRemainingHp: bossCurrentHp };
     } else {
+        logger.info('[BATTLE_SIMULATION_RESULT]', `Trận đấu hòa sau ${maxTurns} lượt. Tính là thua cho người chơi.`);
         return { userWin: false, events: battleEvents, userRemainingHp: userCurrentHp, bossRemainingHp: bossCurrentHp }; // Hòa tính là thua
     }
 }

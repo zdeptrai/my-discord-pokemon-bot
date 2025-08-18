@@ -10,10 +10,13 @@
   "license": "ISC",
   "description": "",
   "dependencies": {
+    "@google/generative-ai": "^0.24.1",
     "axios": "^1.10.0",
+    "chalk": "^4.1.2",
     "discord.js": "^14.21.0",
     "dotenv": "^17.2.0",
     "knex": "^3.1.0",
+    "moment-timezone": "^0.6.0",
     "node-cron": "^4.2.0",
     "node-fetch": "^2.7.0",
     "pg": "^8.16.3",

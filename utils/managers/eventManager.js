@@ -1,5 +1,6 @@
 // utils/managers/eventManager.js
 // File này đã được chuyển từ utils/ sang events/ để quản lý tập trung các logic liên quan đến sự kiện.
+const logger = require('../logger'); // <-- Thêm dòng này
 
 // Đối tượng lưu trữ trạng thái của sự kiện
 // Chỉ một sự kiện có thể diễn ra tại một thời điểm cho đơn giản
@@ -23,7 +24,9 @@ const EVENT_DURATION_MINUTES = 15; // Thời lượng mặc định của sự k
  */
 function startEvent(channelId) {
     if (eventState.active) {
-        throw new Error(`Đã có một sự kiện đang diễn ra tại <#${eventState.channelId}>. Vui lòng đợi sự kiện đó kết thúc.`);
+        const errorMessage = `Đã có một sự kiện đang diễn ra tại <#${eventState.channelId}>. Vui lòng đợi sự kiện đó kết thúc.`;
+        logger.warn('[EVENT_MANAGER_WARN]', errorMessage); // Sử dụng logger.warn cho trường hợp này
+        throw new Error(errorMessage);
     }
 
     eventState.active = true;
@@ -35,11 +38,11 @@ function startEvent(channelId) {
 
     // Thiết lập timeout để tự động kết thúc sự kiện
     eventState.timeoutId = setTimeout(() => {
-        console.log(`[EVENT_MANAGER] Sự kiện tại kênh ${channelId} đã hết giờ.`);
+        logger.info(`[EVENT_MANAGER_TIMEOUT]`, `Sự kiện tại kênh ${channelId} đã hết giờ.`); // Log bằng logger.info
         endEvent(); // Kết thúc sự kiện khi hết giờ
     }, EVENT_DURATION_MINUTES * 60 * 1000);
 
-    console.log(`[EVENT_MANAGER] Sự kiện đã bắt đầu tại kênh ${channelId}, kết thúc lúc ${new Date(eventState.endTime).toLocaleString()}.`);
+    logger.info(`[EVENT_MANAGER_START]`, `Sự kiện đã bắt đầu tại kênh ${channelId}, kết thúc lúc ${new Date(eventState.endTime).toLocaleString()}.`); // Log bằng logger.info
     return { ...eventState }; // Trả về bản sao trạng thái
 }
 
@@ -53,6 +56,8 @@ function endEvent(winnerId = null) {
         eventState.timeoutId = null;
     }
 
+    const wasActive = eventState.active; // Kiểm tra xem sự kiện có đang hoạt động không trước khi reset
+    
     eventState.active = false;
     eventState.winnerId = winnerId;
     // Giữ channelId và eventMessageId một lát để có thể gửi tin nhắn kết thúc
@@ -65,7 +70,12 @@ function endEvent(winnerId = null) {
     eventState.lastRoll = null;
     eventState.lastRollerId = null;
 
-    console.log(`[EVENT_MANAGER] Sự kiện đã kết thúc. Người thắng: ${winnerId || 'Không có'}.`);
+    if (wasActive) { // Chỉ log kết thúc nếu thực sự có sự kiện đang hoạt động
+        logger.info(`[EVENT_MANAGER_END]`, `Sự kiện đã kết thúc. Người thắng: ${winnerId || 'Không có'}.`); // Log bằng logger.info
+    } else {
+        logger.debug(`[EVENT_MANAGER_DEBUG]`, `Hàm endEvent được gọi nhưng không có sự kiện nào đang hoạt động.`);
+    }
+    
     return finalState;
 }
 
@@ -75,6 +85,7 @@ function endEvent(winnerId = null) {
  * @returns {boolean} True nếu sự kiện đang hoạt động trong kênh này, ngược lại False.
  */
 function isEventActiveInChannel(channelId) {
+    // Không cần log cho hàm này vì nó được gọi rất thường xuyên
     return eventState.active && eventState.channelId === channelId && Date.now() < eventState.endTime;
 }
 
@@ -83,6 +94,7 @@ function isEventActiveInChannel(channelId) {
  * @returns {object} Bản sao của đối tượng eventState.
  */
 function getEventState() {
+    // Không cần log cho hàm này
     return { ...eventState };
 }
 
@@ -92,7 +104,7 @@ function getEventState() {
  */
 function setEventMessageId(messageId) {
     eventState.eventMessageId = messageId;
-    console.log(`[EVENT_MANAGER] Đã lưu ID tin nhắn sự kiện: ${messageId}`);
+    logger.info(`[EVENT_MANAGER]`, `Đã lưu ID tin nhắn sự kiện: ${messageId}`); // Log bằng logger.info
 }
 
 /**
@@ -103,7 +115,7 @@ function setEventMessageId(messageId) {
 function updateLastRoll(userId, rollResult) {
     eventState.lastRoll = rollResult;
     eventState.lastRollerId = userId;
-    console.log(`[EVENT_MANAGER] Cập nhật roll gần nhất: ${rollResult} bởi ${userId}`);
+    logger.info(`[EVENT_MANAGER]`, `Cập nhật roll gần nhất: ${rollResult.join(', ')} bởi người dùng ${userId}`); // Log bằng logger.info, định dạng rollResult
 }
 
 module.exports = {
