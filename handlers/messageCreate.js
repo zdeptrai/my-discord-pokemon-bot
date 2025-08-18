@@ -35,7 +35,7 @@ module.exports = {
 
         if (message.author.bot || message.webhookId) {
             // Sử dụng tag MESSAGE_SKIP để dễ dàng phân biệt trong log message nếu cần
-            logger.message('[MESSAGE_SKIP]', `Bỏ qua tin nhắn từ bot hoặc webhook: ${message.author.tag} (${message.author.id})`);
+            // logger.message('[MESSAGE_SKIP]', `Bỏ qua tin nhắn từ bot hoặc webhook: ${message.author.tag} (${message.author.id})`);
             return;
         }
 

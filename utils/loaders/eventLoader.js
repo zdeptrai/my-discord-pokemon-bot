@@ -11,7 +11,6 @@ const logger = require('../logger'); // <-- Thêm dòng này
  * @param {object} db Đối tượng Knex database instance.
  */
 function loadDiscordEventHandlers(client, handlersPath, db) {
-    logger.info('[EVENT_LOADER]', `Bắt đầu tải các event handler từ đường dẫn: ${handlersPath}`); // Log bắt đầu tải
     if (fs.existsSync(handlersPath)) {
         const eventFiles = fs.readdirSync(handlersPath).filter(file => file.endsWith('.js'));
 
@@ -36,7 +35,6 @@ function loadDiscordEventHandlers(client, handlersPath, db) {
                 sendOwnerDM(client, `[Lỗi Tải Event Handler] Bot không thể tải event handler từ file: \`${file}\``, error);
             }
         }
-        logger.info(`[EVENT_LOADER]`, `Đã tải ${eventFiles.length} event handlers từ thư mục 'handlers'.`); // Thay thế console.log
     } else {
         logger.warn(`[EVENT_LOADER_WARN]`, `Thư mục 'handlers' không tồn tại tại ${handlersPath}. Không có event handler nào được tải.`); // Thay thế console.warn
     }

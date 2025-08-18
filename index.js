@@ -6,15 +6,16 @@ const path = require('path');
 const fs = require('fs');
 
 // Import logger mới
-const logger = require('./utils/logger'); // <-- Đảm bảo dòng này đúng đường dẫn
+const logger = require('./utils/logger'); 
 
 // Import các loader và manager
 const { sendOwnerDM } = require('./utils/errors/errorReporter'); 
-const { loadCommands } = require('./utils/loaders/commandLoader');
+const { loadCommands } = require('./utils/loaders/commandLoader'); 
 const { loadDiscordEventHandlers } = require('./utils/loaders/eventLoader'); 
 const { setupCleanupHandlers } = require('./utils/managers/cleanupManager'); 
 const { startSpawnManager } = require('./utils/managers/spawnManager');
 const { loadLanguages } = require('./utils/loaders/languageLoader'); 
+const { printCommandTable } = require('./utils/display/commandTablePrinter'); // <-- Dòng MỚI để import hàm
 
 // Khởi tạo Client Discord
 const client = new Client({
@@ -51,10 +52,10 @@ client.login(process.env.DISCORD_TOKEN);
 
 // --- XỬ LÝ SỰ KIỆN KHI BOT ĐÃ SẴN SÀNG ---
 client.once('ready', async () => {
-    logger.info(`[BOT_CORE]`, `${client.user.tag} đã sẵn sàng!`); // Đã thay đổi từ logger.log thành logger.info
+    logger.info(`[BOT_CORE]`, `${client.user.tag} đã sẵn sàng!`); 
 
     // --- Tải TẤT CẢ các thành phần khi bot khởi động ---
-    loadLanguages(client); // 1. Tải ngôn ngữ trước tiên
+    loadLanguages(client); 
     
     // 2. Cấu hình trạng thái bot
     try {
@@ -76,38 +77,58 @@ client.once('ready', async () => {
             }],
             status: 'online'
         });
-        logger.info(`[BOT_CORE]`, `Đã cập nhật trạng thái bot thành công.`); // Đã thay đổi từ logger.log thành logger.info
+        logger.info(`[BOT_CORE]`, `Đã cập nhật trạng thái bot thành công.`); 
     } catch (error) {
-        logger.warn(`[BOT_CORE_WARN]`, `Không thể đặt trạng thái bot:`, error); // Giữ nguyên logger.warn
+        logger.warn(`[BOT_CORE_WARN]`, `Không thể đặt trạng thái bot:`, error); 
     }
 
     // 3. Khởi động các Manager
     startSpawnManager(client, client.db);
-    logger.info(`[BOT_CORE]`, `Đã khởi động Spawn Manager.`); // Đã thay đổi từ logger.log thành logger.info
+    logger.info(`[BOT_CORE]`, `Đã khởi động Spawn Manager.`); 
 
     setupCleanupHandlers(client, client.db);
-    logger.info(`[BOT_CORE]`, `Đã thiết lập Cleanup Handlers.`); // Đã thay đổi từ logger.log thành logger.info
+    logger.info(`[BOT_CORE]`, `Đã thiết lập Cleanup Handlers.`); 
 
     // 4. Tải Commands (sử dụng loader hiện có)
+    const allCommandStatuses = []; // Mảng tổng hợp trạng thái của tất cả các lệnh
+
     const commandsDir = path.join(__dirname, 'commands');
     const slashCommandsDir = path.join(commandsDir, 'slash');
-    
-    loadCommands(client, commandsDir); 
-    loadCommands(client, slashCommandsDir); 
-    logger.info(`[BOT_CORE]`, `✅ Đã tải tất cả các lệnh.`); // Đã thay đổi từ logger.log thành logger.info
+    // Mặc định, nếu bạn có lệnh prefix nằm trực tiếp trong thư mục 'commands',
+    // thì 'commandsDir' sẽ là đường dẫn cho chúng.
+
+    // Tải các lệnh từ thư mục "commands" (chứa prefix commands)
+    if (fs.existsSync(commandsDir)) {
+        // Gọi loadCommands với commandsDir (đường dẫn thư mục)
+        allCommandStatuses.push(...loadCommands(client, commandsDir));
+    } else {
+        logger.warn(`[BOT_CORE_WARN]`, `Thư mục commands không tồn tại: ${commandsDir}`);
+    }
+
+    // Tải các lệnh từ thư mục "slash" (chứa slash commands)
+    if (fs.existsSync(slashCommandsDir)) {
+        // Gọi loadCommands với slashCommandsDir (đường dẫn thư mục)
+        allCommandStatuses.push(...loadCommands(client, slashCommandsDir));
+    } else {
+        logger.warn(`[BOT_CORE_WARN]`, `Thư mục Slash Commands không tồn tại: ${slashCommandsDir}`);
+    }
+
+    // Gọi hàm từ file riêng biệt
+    printCommandTable(allCommandStatuses); // <-- Gọi hàm đã import
+    logger.info(`[BOT_CORE]`, `✅ Hoàn tất tải và hiển thị trạng thái các lệnh.`);
 
     // 5. Tải Discord.js Event Handlers (bao gồm cả interactionCreate)
     const handlerDirectories = [
         path.join(__dirname, 'handlers'), 
-        path.join(__dirname, 'events')    
+        path.join(__dirname, 'events') 
     ];
 
     for (const dirPath of handlerDirectories) {
         if (fs.existsSync(dirPath)) {
             loadDiscordEventHandlers(client, dirPath, client.db);
         } else {
-            logger.warn(`[BOT_CORE_WARN]`, `Thư mục event handler không tồn tại: ${dirPath}`); // Giữ nguyên logger.warn
+            logger.warn(`[BOT_CORE_WARN]`, `Thư mục event handler không tồn tại: ${dirPath}`); 
         }
     }
-    logger.info(`[BOT_CORE]`, `✅ Đã tải tất cả các Event Handlers.`); // Đã thay đổi từ logger.log thành logger.info
+    logger.info(`[BOT_CORE]`, `✅ Đã tải tất cả các Event Handlers.`);
 });
