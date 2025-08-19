@@ -9,23 +9,15 @@ module.exports = {
     // Đã thay đổi PREFIX từ 'p!' thành '!'
     PREFIX: '!', 
     BOT_NAME: 'Demonking',
-    BOT_STATUS_MESSAGE: 'J97',
-    BOT_STATUS_TYPE: 'Listening',
-
-    BOT_DESCRIPTION:
-        'Chào mừng đến với PokéBot! Hãy bắt đầu cuộc phiêu lưu Pokémon của bạn tại đây.\n\n' +
-        '**Các lệnh cơ bản:**\n' +
-        '`!start` - Bắt đầu hành trình của bạn và chọn Pokémon khởi đầu.\n' +
-        '`!catch` - Bắt Pokémon hoang dã xuất hiện trong kênh.\n' +
-        '`!mypokemon` - Xem danh sách Pokémon của bạn.\n' +
-        '`!help` - Xem lại hướng dẫn này hoặc các lệnh khác.\n\n' +
-        'Hãy khám phá thế giới Pokémon và trở thành Huấn luyện viên vĩ đại nhất!',
+    BOT_STATUS_MESSAGE: 'Hello, I\'m bot by z',
+    BOT_STATUS_TYPE: 'Custom',
 
     // Thêm phần này để quản lý trạng thái bật/tắt của lệnh
     COMMAND_TOGGLES: {
         ask: true,     // Đặt true để bật, false để tắt
         leaderboard: true, // Ví dụ: lệnh leaderboard đang tắt
         profile: true,
+        giveaway: true,
         weather: true,
         battle: true,
         boss: true,
