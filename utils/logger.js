@@ -2,7 +2,7 @@
 require('dotenv').config();
 const fs = require('node:fs');
 const path = require('node:path');
-const moment = require('moment-timezone'); 
+const moment = require('moment-timezone');
 const chalk = require('chalk');
 
 const LOG_LEVELS = {
@@ -11,7 +11,8 @@ const LOG_LEVELS = {
     WARN: 2,
     ERROR: 3,
     FATAL: 4,
-    MESSAGE: 5 
+    MESSAGE: 5,
+    POKEMON: 6 // <-- THÊM CẤP ĐỘ LOG MỚI CHO POKEMON
 };
 
 // Cấu hình từ .env cho Console Output
@@ -21,7 +22,8 @@ const CONSOLE_CONFIG = {
     warn: process.env.CONSOLE_LOG_WARN === 'true',
     error: process.env.CONSOLE_LOG_ERROR === 'true',
     fatal: process.env.CONSOLE_LOG_FATAL === 'true',
-    message: process.env.CONSOLE_LOG_MESSAGE === 'true', // <-- Thêm cấu hình cho console message log
+    message: process.env.CONSOLE_LOG_MESSAGE === 'true',
+    pokemon: process.env.CONSOLE_LOG_POKEMON === 'true', // <-- THÊM CẤU HÌNH CHO CONSOLE POKEMON LOG
 };
 
 // Cấu hình từ .env cho File Logging
@@ -29,15 +31,17 @@ const FILE_LOG_CONFIG = {
     enableDebug: process.env.ENABLE_DEBUG_FILE_LOGGING === 'true',
     enableInfo: process.env.ENABLE_INFO_FILE_LOGGING === 'true',
     enableWarn: process.env.ENABLE_WARN_FILE_LOGGING === 'true',
-    enableError: process.env.ENABLE_ERROR_FILE_LOGGING === 'true', // Error và Fatal sẽ cùng file
-    enableMessage: process.env.ENABLE_MESSAGE_FILE_LOGGING === 'true', // <-- Thêm cấu hình cho file message log
+    enableError: process.env.ENABLE_ERROR_FILE_LOGGING === 'true',
+    enableMessage: process.env.ENABLE_MESSAGE_FILE_LOGGING === 'true',
+    enablePokemon: process.env.ENABLE_POKEMON_FILE_LOGGING === 'true', // <-- THÊM CẤU HÌNH GHI FILE POKEMON
     debugFile: process.env.DEBUG_LOG_FILE || 'debug.log',
     infoFile: process.env.INFO_LOG_FILE || 'info.log',
     warnFile: process.env.WARN_LOG_FILE || 'warn.log',
-    errorFile: process.env.ERROR_LOG_FILE || 'error.log', // File cho ERROR và FATAL
-    messageFile: process.env.MESSAGE_LOG_FILE || 'messages.log', // <-- Tên file cho log tin nhắn
-    maxSizeMB: parseInt(process.env.LOG_FILE_MAX_SIZE_MB) || 10, // Đặt mặc định 10MB nếu không có
-    maxBackups: parseInt(process.env.LOG_FILE_MAX_BACKUPS) || 5 // Đặt mặc định 5 backups nếu không có
+    errorFile: process.env.ERROR_LOG_FILE || 'error.log',
+    messageFile: process.env.MESSAGE_LOG_FILE || 'messages.log',
+    pokemonFile: process.env.POKEMON_LOG_FILE || 'pokemon_events.log', // <-- TÊN FILE MỚI CHO POKEMON LOG
+    maxSizeMB: parseInt(process.env.LOG_FILE_MAX_SIZE_MB) || 10,
+    maxBackups: parseInt(process.env.LOG_FILE_MAX_BACKUPS) || 5
 };
 
 const LOG_DIR = path.join(process.cwd(), 'logs');
@@ -55,7 +59,8 @@ const LEVEL_COLORS = {
     WARN: chalk.yellow,
     ERROR: chalk.red,
     FATAL: chalk.bgRed.white, // Nền đỏ, chữ trắng cho FATAL để nổi bật
-    MESSAGE: chalk.gray, // <-- Màu sắc cho log tin nhắn (ví dụ: xám)
+    MESSAGE: chalk.gray,
+    POKEMON: chalk.hex('#FF69B4'), // <-- MÀU SẮC MỚI CHO POKEMON LOG (ví dụ: HotPink)
 };
 
 // Màu sắc cho các tag cụ thể (ví dụ Pokémon, Discord Events, DB, v.v.)
@@ -64,7 +69,7 @@ const TAG_COLORS = {
     POKEMON_SPAWN: chalk.cyan,
     POKEMON_CATCH: chalk.greenBright,
     POKEMON_CLEANUP: chalk.magenta,
-    POKEMON_SPAWN_ERROR: chalk.red.bold, // Ưu tiên màu ERROR, nhưng có thể thêm bold
+    POKEMON_SPAWN_ERROR: chalk.red.bold,
     POKEMON_SPAWN_WARN: chalk.yellow.bold,
     POKEMON_CLEANUP_WARN: chalk.yellow,
     POKEMON_SPAWN_MANAGER: chalk.blueBright,
@@ -79,14 +84,14 @@ const TAG_COLORS = {
     DISCORD_EVENT: chalk.green,
     BOT_STARTUP: chalk.greenBright,
     BOT_SHUTDOWN: chalk.redBright,
-    MESSAGE_CREATE: chalk.hex('#A9A9A9'), // DarkGray cho tag MESSAGE_CREATE
-    MESSAGE_SKIP: chalk.hex('#808080'), // Grey cho tag MESSAGE_SKIP
-    MESSAGE_MENTION: chalk.hex('#FFD700'), // Gold cho tag MESSAGE_MENTION
+    MESSAGE_CREATE: chalk.hex('#A9A9A9'),
+    MESSAGE_SKIP: chalk.hex('#808080'),
+    MESSAGE_MENTION: chalk.hex('#FFD700'),
 
     // Database
-    DB_CONNECTION: chalk.rgb(255, 165, 0), // Orange
+    DB_CONNECTION: chalk.rgb(255, 165, 0),
     DB_ERROR: chalk.red.bold,
-    
+
     // XP & Roles
     XP_MANAGER: chalk.yellowBright,
     USER_ROLE_UPDATE: chalk.cyan,
@@ -94,14 +99,14 @@ const TAG_COLORS = {
 
     // Error Reporter
     ERROR_REPORT: chalk.bgRed.white,
-    
+
     // Nếu có module khác, thêm vào đây:
-    // YOUR_MODULE: chalk.hex('#FF5733'), 
+    // YOUR_MODULE: chalk.hex('#FF5733'),
 };
 
 /**
  * Hàm hỗ trợ để áp dụng màu sắc cho console output.
- * @param {string} levelName - Tên cấp độ log (DEBUG, INFO, WARN, ERROR, FATAL, MESSAGE).
+ * @param {string} levelName - Tên cấp độ log (DEBUG, INFO, WARN, ERROR, FATAL, MESSAGE, POKEMON).
  * @param {string} tag - Thẻ hoặc tiền tố cho log.
  * @param {string} message - Tin nhắn đã được định dạng.
  * @returns {string} Tin nhắn đã được thêm màu sắc.
@@ -110,20 +115,16 @@ function colorizeForConsole(levelName, tag, message) {
     let coloredTag = tag;
     let coloredLevel = LEVEL_COLORS[levelName](`[${levelName}]`);
 
-    // Áp dụng màu sắc cho tag nếu có định nghĩa
-    // Tìm kiếm tag khớp hoàn toàn hoặc tag bắt đầu bằng
-    const specificTagColorKey = Object.keys(TAG_COLORS).find(key => 
-        tag === `[${key}]` || tag.startsWith(`[${key}] `) // Kiểm tra cả khớp hoàn toàn và tiền tố
+    const specificTagColorKey = Object.keys(TAG_COLORS).find(key =>
+        tag === `[${key}]` || tag.startsWith(`[${key}] `)
     );
 
     if (specificTagColorKey) {
         coloredTag = TAG_COLORS[specificTagColorKey](tag);
     } else {
-        // Nếu không có màu tag cụ thể, sử dụng màu level cho cả tag
         coloredTag = LEVEL_COLORS[levelName](tag);
     }
-    
-    // Áp dụng màu cho toàn bộ tin nhắn dựa trên level
+
     const messageColorFunc = LEVEL_COLORS[levelName];
     return `${coloredTag} ${coloredLevel} ${messageColorFunc(message)}`;
 }
@@ -142,7 +143,6 @@ function rotateLogFile(filePath, maxSizeMB, maxBackups) {
     const fileSizeMB = stats.size / (1024 * 1024);
 
     if (fileSizeMB >= maxSizeMB) {
-        // Xóa các file backup cũ nhất nếu vượt quá giới hạn
         for (let i = maxBackups; i >= 1; i--) {
             const oldBackupPath = `${filePath}.${i}`;
             if (fs.existsSync(oldBackupPath)) {
@@ -155,14 +155,13 @@ function rotateLogFile(filePath, maxSizeMB, maxBackups) {
                 }
             }
         }
-        // Đổi tên file hiện tại thành backup đầu tiên
         fs.renameSync(filePath, `${filePath}.1`);
     }
 }
 
 /**
  * Ghi tin nhắn vào file log cụ thể.
- * @param {string} levelName - Tên cấp độ log (DEBUG, INFO, WARN, ERROR, FATAL, MESSAGE)
+ * @param {string} levelName - Tên cấp độ log (DEBUG, INFO, WARN, ERROR, FATAL, MESSAGE, POKEMON)
  * @param {string} tag - Thẻ hoặc tiền tố cho log.
  * @param {...any} messages - Các tin nhắn hoặc dữ liệu cần log.
  */
@@ -173,7 +172,7 @@ function writeToFile(levelName, tag, ...messages) {
     let currentMaxBackups = FILE_LOG_CONFIG.maxBackups;
 
     switch (levelName) {
-        case 'DEBUG': 
+        case 'DEBUG':
             filePath = path.join(LOG_DIR, FILE_LOG_CONFIG.debugFile);
             enabled = FILE_LOG_CONFIG.enableDebug;
             break;
@@ -186,35 +185,40 @@ function writeToFile(levelName, tag, ...messages) {
             enabled = FILE_LOG_CONFIG.enableWarn;
             break;
         case 'ERROR':
-        case 'FATAL': 
+        case 'FATAL':
             filePath = path.join(LOG_DIR, FILE_LOG_CONFIG.errorFile);
             enabled = FILE_LOG_CONFIG.enableError;
             break;
-        case 'MESSAGE': // <-- Xử lý cấp độ MESSAGE
+        case 'MESSAGE':
             filePath = path.join(LOG_DIR, FILE_LOG_CONFIG.messageFile);
             enabled = FILE_LOG_CONFIG.enableMessage;
-            currentMaxSizeMB = parseInt(process.env.MESSAGE_LOG_FILE_MAX_SIZE_MB) || 10; // Cấu hình riêng cho message log
-            currentMaxBackups = parseInt(process.env.MESSAGE_LOG_FILE_MAX_BACKUPS) || 7; // Cấu hình riêng cho message log
+            // Dòng này cần được xem xét lại nếu bạn muốn MESSAGE_LOG_FILE_MAX_SIZE_MB & MESSAGE_LOG_FILE_MAX_BACKUPS
+            // được định nghĩa riêng trong .env. Hiện tại bạn chưa có các biến đó.
+            // Nếu không có, nó sẽ dùng LOG_FILE_MAX_SIZE_MB và LOG_FILE_MAX_BACKUPS
+            // currentMaxSizeMB = parseInt(process.env.MESSAGE_LOG_FILE_MAX_SIZE_MB) || FILE_LOG_CONFIG.maxSizeMB;
+            // currentMaxBackups = parseInt(process.env.MESSAGE_LOG_FILE_MAX_BACKUPS) || FILE_LOG_CONFIG.maxBackups;
+            break;
+        case 'POKEMON': // <-- XỬ LÝ CẤP ĐỘ LOG MỚI
+            filePath = path.join(LOG_DIR, FILE_LOG_CONFIG.pokemonFile);
+            enabled = FILE_LOG_CONFIG.enablePokemon;
             break;
         default:
-            return; 
+            return;
     }
 
     if (!enabled) return;
 
-    rotateLogFile(filePath, currentMaxSizeMB, currentMaxBackups); // Truyền tham số cấu hình riêng
+    rotateLogFile(filePath, currentMaxSizeMB, currentMaxBackups);
 
     const timestamp = moment().tz('Asia/Ho_Chi_Minh').format('YYYY-MM-DD HH:mm:ss.SSS');
     let logMessage = `[${timestamp}] [${levelName}] ${tag}`;
-    
+
     const formattedMessages = messages.map(msg => {
         if (typeof msg === 'object' && msg !== null) {
             try {
-                // Sử dụng JSON.stringify với khoảng trắng để dễ đọc trong file log
-                return JSON.stringify(msg, null, 2); 
+                return JSON.stringify(msg, null, 2);
             } catch (e) {
-                // Fallback nếu không thể stringify object
-                return String(msg); 
+                return String(msg);
             }
         }
         return String(msg);
@@ -344,7 +348,7 @@ function fatal(tag, ...messages) {
     }
     writeToFile('FATAL', tag, ...messages);
     // Có thể thêm logic thoát ứng dụng tại đây nếu là lỗi thực sự nghiêm trọng
-    // process.exit(1); 
+    // process.exit(1);
 }
 
 /**
@@ -364,19 +368,43 @@ function message(tag, ...messages) {
         return String(msg);
     }).join(' ');
 
-    // Bạn có thể chọn có hiển thị message log trên console hay không
-    if (CONSOLE_CONFIG.message) { 
+    if (CONSOLE_CONFIG.message) {
         console.log(colorizeForConsole('MESSAGE', tag, formattedMessage));
     }
     writeToFile('MESSAGE', tag, ...messages);
 }
 
+/**
+ * Hàm log các sự kiện liên quan đến Pokémon.
+ * Có thể hiển thị trên console và/hoặc ghi vào file pokemon_events.log.
+ * @param {string} tag - Thẻ hoặc tiền tố cho log (ví dụ: '[POKEMON_SPAWN]', '[POKEMON_CATCH]').
+ * @param {...any} messages - Các tin nhắn hoặc dữ liệu cần log.
+ */
+function pokemon(tag, ...messages) { // <-- HÀM LOGGER MỚI CHO POKEMON
+    const formattedMessage = messages.map(msg => {
+        if (typeof msg === 'object' && msg !== null) {
+            try {
+                return JSON.stringify(msg);
+            } catch (e) {
+                return String(msg);
+            }
+        }
+        return String(msg);
+    }).join(' ');
+
+    if (CONSOLE_CONFIG.pokemon) { // Sử dụng cấu hình console mới
+        console.log(colorizeForConsole('POKEMON', tag, formattedMessage));
+    }
+    writeToFile('POKEMON', tag, ...messages); // Ghi vào file log POKEMON
+}
+
 
 module.exports = {
-    info, 
+    info,
     debug,
     warn,
     error,
     fatal,
-    message 
+    message,
+    pokemon 
 }

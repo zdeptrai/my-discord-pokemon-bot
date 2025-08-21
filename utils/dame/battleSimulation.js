@@ -171,12 +171,12 @@ async function simulateBossBattle(userPokemon, bossPokemon, userSkillsData, boss
 
         // Kiểm tra kết thúc trận đấu sau lượt tấn công đầu tiên
         if (userCurrentHp <= 0) {
-            logger.info('[BATTLE_SIMULATION_END]', `Trận đấu kết thúc ở lượt ${turn}: Boss thắng, User HP: 0.`);
+            logger.pokemon('[BATTLE_SIMULATION_END]', `Trận đấu kết thúc ở lượt ${turn}: Boss thắng, User HP: 0.`);
             battleEvents.push({ type: 'end', winner: 'boss', userHp: 0, bossHp: bossCurrentHp, userPokemonName: userPokemon.nickname || userPokemon.name, bossPokemonName: bossPokemon.name });
             return { userWin: false, events: battleEvents, userRemainingHp: 0, bossRemainingHp: bossCurrentHp };
         }
         if (bossCurrentHp <= 0) {
-            logger.info('[BATTLE_SIMULATION_END]', `Trận đấu kết thúc ở lượt ${turn}: User thắng, Boss HP: 0.`);
+            logger.pokemon('[BATTLE_SIMULATION_END]', `Trận đấu kết thúc ở lượt ${turn}: User thắng, Boss HP: 0.`);
             battleEvents.push({ type: 'end', winner: 'user', userHp: userCurrentHp, bossHp: 0, userPokemonName: userPokemon.nickname || userPokemon.name, bossPokemonName: bossPokemon.name });
             return { userWin: true, events: battleEvents, userRemainingHp: userCurrentHp, bossRemainingHp: 0 };
         }
@@ -242,28 +242,28 @@ async function simulateBossBattle(userPokemon, bossPokemon, userSkillsData, boss
 
         // Kiểm tra kết thúc trận đấu sau lượt tấn công thứ hai
         if (userCurrentHp <= 0) {
-            logger.info('[BATTLE_SIMULATION_END]', `Trận đấu kết thúc ở lượt ${turn}: Boss thắng, User HP: 0.`);
+            logger.pokemon('[BATTLE_SIMULATION_END]', `Trận đấu kết thúc ở lượt ${turn}: Boss thắng, User HP: 0.`);
             battleEvents.push({ type: 'end', winner: 'boss', userHp: 0, bossHp: bossCurrentHp, userPokemonName: userPokemon.nickname || userPokemon.name, bossPokemonName: bossPokemon.name });
             return { userWin: false, events: battleEvents, userRemainingHp: 0, bossRemainingHp: bossCurrentHp };
         }
         if (bossCurrentHp <= 0) {
-            logger.info('[BATTLE_SIMULATION_END]', `Trận đấu kết thúc ở lượt ${turn}: User thắng, Boss HP: 0.`);
+            logger.pokemon('[BATTLE_SIMULATION_END]', `Trận đấu kết thúc ở lượt ${turn}: User thắng, Boss HP: 0.`);
             battleEvents.push({ type: 'end', winner: 'user', userHp: userCurrentHp, bossHp: 0, userPokemonName: userPokemon.nickname || userPokemon.name, bossPokemonName: bossPokemon.name });
             return { userWin: true, events: battleEvents, userRemainingHp: userCurrentHp, bossRemainingHp: 0 };
         }
     }
 
     // Nếu đạt giới hạn lượt
-    logger.info('[BATTLE_SIMULATION_END]', `Trận đấu kết thúc sau ${maxTurns} lượt tối đa. User HP: ${Math.max(0, userCurrentHp)}, Boss HP: ${Math.max(0, bossCurrentHp)}.`);
+    logger.pokemon('[BATTLE_SIMULATION_END]', `Trận đấu kết thúc sau ${maxTurns} lượt tối đa. User HP: ${Math.max(0, userCurrentHp)}, Boss HP: ${Math.max(0, bossCurrentHp)}.`);
     battleEvents.push({ type: 'end_max_turns', userHp: userCurrentHp, bossHp: bossCurrentHp, userPokemonName: userPokemon.nickname || userPokemon.name, bossPokemonName: bossPokemon.name });
     if (userCurrentHp > bossCurrentHp) {
-        logger.info('[BATTLE_SIMULATION_RESULT]', `Người chơi thắng theo HP cao hơn sau ${maxTurns} lượt.`);
+        logger.pokemon('[BATTLE_SIMULATION_RESULT]', `Người chơi thắng theo HP cao hơn sau ${maxTurns} lượt.`);
         return { userWin: true, events: battleEvents, userRemainingHp: userCurrentHp, bossRemainingHp: bossCurrentHp };
     } else if (bossCurrentHp > userCurrentHp) {
-        logger.info('[BATTLE_SIMULATION_RESULT]', `Boss thắng theo HP cao hơn sau ${maxTurns} lượt.`);
+        logger.pokemon('[BATTLE_SIMULATION_RESULT]', `Boss thắng theo HP cao hơn sau ${maxTurns} lượt.`);
         return { userWin: false, events: battleEvents, userRemainingHp: userCurrentHp, bossRemainingHp: bossCurrentHp };
     } else {
-        logger.info('[BATTLE_SIMULATION_RESULT]', `Trận đấu hòa sau ${maxTurns} lượt. Tính là thua cho người chơi.`);
+        logger.pokemon('[BATTLE_SIMULATION_RESULT]', `Trận đấu hòa sau ${maxTurns} lượt. Tính là thua cho người chơi.`);
         return { userWin: false, events: battleEvents, userRemainingHp: userCurrentHp, bossRemainingHp: bossCurrentHp }; // Hòa tính là thua
     }
 }

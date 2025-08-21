@@ -31,7 +31,7 @@ async function registerUser(userId, starterName) {
             pokecoins: STARTING_POKECOINS,
         }).onConflict('discord_id').ignore();
 
-        console.log(`[DATABASE] Người dùng mới đã được đăng ký hoặc cập nhật: (ID ${userId}) với ${STARTING_POKECOINS} Pokecoins.`);
+        logger.pokmeon(`[DATABASE] Người dùng mới đã được đăng ký hoặc cập nhật: (ID ${userId}) với ${STARTING_POKECOINS} Pokecoins.`);
 
         const basePokemonData = await db('pokemons').whereRaw('LOWER(name) = ?', [starterName.toLowerCase()]).first();
 
@@ -94,10 +94,10 @@ async function registerUser(userId, starterName) {
                 updated_at: new Date()
             });
 
-        console.log(`[DATABASE] Pokémon khởi đầu ${starterName} đã được cấp cho ${userId}.`);
+        logger.pokemon(`[DATABASE] Pokémon khởi đầu ${starterName} đã được cấp cho ${userId}.`);
 
     } catch (error) {
-        console.error(`[DATABASE_ERROR] Lỗi trong quá trình đăng ký người dùng hoặc cấp Pokémon khởi đầu ${userId}:`, error);
+        logger.error(`[DATABASE_ERROR] Lỗi trong quá trình đăng ký người dùng hoặc cấp Pokémon khởi đầu ${userId}:`, error);
         throw error;
     }
 }

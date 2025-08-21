@@ -51,7 +51,7 @@ async function addOrUpdateUserItem(userId, itemId, quantity, dbInstance) {
                 .where({ user_discord_id: userId, item_id: itemId })
                 .increment('quantity', quantity)
                 .update('updated_at', dbInstance.fn.now());
-            logger.info('[ITEM_UTILS]', `Đã cập nhật số lượng vật phẩm (ID: ${itemId}) cho người dùng ${userId}. Số lượng thay đổi: ${quantity}.`);
+            logger.pokemon('[ITEM_UTILS]', `Đã cập nhật số lượng vật phẩm (ID: ${itemId}) cho người dùng ${userId}. Số lượng thay đổi: ${quantity}.`);
         } else {
             // Nếu chưa có, tạo bản ghi mới
             await dbInstance('user_inventory_items').insert({ // SỬ DỤNG BẢNG ĐÚNG TÊN
@@ -61,7 +61,7 @@ async function addOrUpdateUserItem(userId, itemId, quantity, dbInstance) {
                 created_at: dbInstance.fn.now(),
                 updated_at: dbInstance.fn.now()
             });
-            logger.info('[ITEM_UTILS]', `Đã thêm vật phẩm mới (ID: ${itemId}, số lượng: ${quantity}) vào kho của người dùng ${userId}.`);
+            logger.pokemon('[ITEM_UTILS]', `Đã thêm vật phẩm mới (ID: ${itemId}, số lượng: ${quantity}) vào kho của người dùng ${userId}.`);
         }
     } catch (error) {
         logger.error(`[ITEM_UTILS_ERROR]`, `Lỗi khi thêm/cập nhật item ${itemId} cho người dùng ${userId}:`, error); // Thay thế console.error

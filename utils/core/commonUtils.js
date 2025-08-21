@@ -25,16 +25,16 @@ async function deleteMessageWithTimeout(message, timeout, logContext = '') {
                     // console.log(`[DELETE_MESSAGE_SUCCESS] Tin nhắn (${message.id}) đã được xóa thành công. Context: ${logContext}`);
                 } else {
                     // Nếu không deletable, có thể nó đã bị xóa rồi hoặc bot không có quyền
-                    console.warn(`[DELETE_MESSAGE_INFO] Tin nhắn (${message.id}) không thể xóa (có thể đã bị xóa hoặc không có quyền). Context: ${logContext}`);
+                    logger.warn(`[DELETE_MESSAGE_INFO] Tin nhắn (${message.id}) không thể xóa (có thể đã bị xóa hoặc không có quyền). Context: ${logContext}`);
                 }
             } catch (error) {
                 // Kiểm tra mã lỗi cụ thể của DiscordAPIError
                 // DiscordAPIError[10008]: Unknown Message có nghĩa là tin nhắn đã bị xóa rồi
                 if (error.code === 10008) {
-                    console.warn(`[DELETE_MESSAGE_INFO] Tin nhắn (${message.id}) không còn tồn tại để xóa (DiscordAPIError 10008). Context: ${logContext}`);
+                    logger.warn(`[DELETE_MESSAGE_INFO] Tin nhắn (${message.id}) không còn tồn tại để xóa (DiscordAPIError 10008). Context: ${logContext}`);
                 } else {
                     // Ghi log các lỗi khác mà chúng ta chưa dự kiến
-                    console.error(`[DELETE_MESSAGE_ERROR] Lỗi không xác định khi xóa tin nhắn (${message.id}). Context: ${logContext}:`, error);
+                    logger.error(`[DELETE_MESSAGE_ERROR] Lỗi không xác định khi xóa tin nhắn (${message.id}). Context: ${logContext}:`, error);
                 }
             } finally {
                 resolve(); // Đảm bảo Promise được giải quyết dù có lỗi hay không

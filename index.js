@@ -51,7 +51,7 @@ client.login(process.env.DISCORD_BOT_TOKEN);
 
 // --- XỬ LÝ SỰ KIỆN KHI BOT ĐÃ SẴN SÀNG ---
 client.once('ready', async () => {
-    logger.info(`[BOT_CORE]`, `${client.user.tag} đã sẵn sàng!`); 
+    logger.info(`[BOT_CORE]`, `✅ ${client.user.tag} đã sẵn sàng!`); 
 
     // --- Tải TẤT CẢ các thành phần khi bot khởi động ---
     loadLanguages(client); 
@@ -77,17 +77,17 @@ client.once('ready', async () => {
             }],
             status: 'online'
         });
-        logger.info(`[BOT_CORE]`, `Đã cập nhật trạng thái bot thành công.`); 
+        logger.info(`[BOT_CORE]`, `✅ Đã cập nhật trạng thái bot thành công.`); 
     } catch (error) {
         logger.warn(`[BOT_CORE_WARN]`, `Không thể đặt trạng thái bot:`, error); 
     }
 
     // 3. Khởi động các Manager
     startSpawnManager(client, client.db);
-    logger.info(`[BOT_CORE]`, `Đã khởi động Spawn Manager.`); 
+    logger.pokemon(`[BOT_CORE]`, `Đã khởi động Spawn Manager.`); 
 
     setupCleanupHandlers(client, client.db);
-    logger.info(`[BOT_CORE]`, `Đã thiết lập Cleanup Handlers.`); 
+    logger.pokemon(`[BOT_CORE]`, `Đã thiết lập Cleanup Handlers.`); 
 
     // 4. Tải Commands (sử dụng loader hiện có)
     const allCommandStatuses = []; // Mảng tổng hợp trạng thái của tất cả các lệnh

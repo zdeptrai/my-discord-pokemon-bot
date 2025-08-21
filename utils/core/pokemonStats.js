@@ -64,10 +64,10 @@ async function recalculatePokemonStats(pokemonId, db) {
                 speed: newSpeed
             });
 
-        console.log(`[RECALC_STATS_SUCCESS] Updated stats for Pokémon ID: ${pokemonId}`);
+        logger.pokemon(`[RECALC_STATS_SUCCESS] Updated stats for Pokémon ID: ${pokemonId}`);
 
     } catch (error) {
-        console.error(`[RECALC_STATS_ERROR] Error while recalculating stats for Pokémon ID ${pokemonId}:`, error);
+        logger.error(`[RECALC_STATS_ERROR] Error while recalculating stats for Pokémon ID ${pokemonId}:`, error);
     }
 }
 

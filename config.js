@@ -52,7 +52,5 @@ module.exports = {
         viewskill: true,
         withdraw: true,
 
-        // Thêm tất cả các tên lệnh của bạn vào đây với giá trị true/false tương ứng
-        // Đảm bảo tên lệnh ở đây khớp với tên file lệnh (ví dụ: ask.js -> "ask")
     }
 }

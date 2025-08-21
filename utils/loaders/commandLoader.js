@@ -63,7 +63,7 @@ function loadCommands(client, commandsPath) {
                 commandStatuses.push({ name: commandName, type: type, status: status });
             }
         }
-        logger.info(`[COMMAND_LOADER]`, `Hoàn tất tải lệnh từ ${commandsPath}.`); 
+        logger.info(`[COMMAND_LOADER]`, `✅ Hoàn tất tải lệnh từ ${commandsPath}.`); 
     } else {
         logger.warn(`[COMMAND_LOADER_WARN]`, `Thư mục 'commands' không tồn tại tại ${commandsPath}. Không có lệnh nào được tải.`); 
     }

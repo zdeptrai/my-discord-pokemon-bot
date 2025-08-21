@@ -75,7 +75,7 @@ function formatBattleEvents(events) {
 async function handleBossDungeon(message, client, db) {
     const userId = message.author.id;
     const userDisplayName = message.member ? message.member.displayName : message.author.displayName;
-    logger.info('[BOSS_DUNGEON]', `Người dùng ${userDisplayName} (${userId}) đã sử dụng lệnh boss.`);
+    logger.pokemon('[BOSS_DUNGEON]', `Người dùng ${userDisplayName} (${userId}) đã sử dụng lệnh boss.`);
 
     try {
         // --- 1. Kiểm tra cấu hình kênh của guild (guild_settings) ---
@@ -176,11 +176,11 @@ async function handleBossDungeon(message, client, db) {
                 const hoursLeft = Math.floor(timeLeftMs / (1000 * 60 * 60));
                 const minutesLeft = Math.ceil((timeLeftMs % (1000 * 60 * 60)) / (1000 * 60));
                 cooldownTimeLeftMessage = ` (còn **${hoursLeft} giờ ${minutesLeft} phút** để nhận thưởng)`;
-                logger.info('[BOSS_DUNGEON]', `Người dùng ${userDisplayName} (${userId}) đang trong thời gian cooldown boss dungeon${cooldownTimeLeftMessage}.`);
+                logger.pokemon('[BOSS_DUNGEON]', `Người dùng ${userDisplayName} (${userId}) đang trong thời gian cooldown boss dungeon${cooldownTimeLeftMessage}.`);
             }
         }
         if (canGetReward) {
-            logger.info('[BOSS_DUNGEON]', `Người dùng ${userDisplayName} (${userId}) đủ điều kiện nhận thưởng boss dungeon.`);
+            logger.pokemon('[BOSS_DUNGEON]', `Người dùng ${userDisplayName} (${userId}) đủ điều kiện nhận thưởng boss dungeon.`);
         }
 
 
@@ -194,7 +194,7 @@ async function handleBossDungeon(message, client, db) {
                 flags: MessageFlags.Ephemeral 
             });
         }
-        logger.info('[BOSS_DUNGEON]', `Đã chọn Boss: ${bossPokedexData.name} (ID: ${bossPokedexData.pokedex_id}, Type: ${bossPokedexData.type1}${bossPokedexData.type2 ? `, ${bossPokedexData.type2}` : ''}).`);
+        logger.pokemon('[BOSS_DUNGEON]', `Đã chọn Boss: ${bossPokedexData.name} (ID: ${bossPokedexData.pokedex_id}, Type: ${bossPokedexData.type1}${bossPokedexData.type2 ? `, ${bossPokedexData.type2}` : ''}).`);
 
 
         // --- 5. Tính toán chỉ số cho Pokémon của người dùng và Boss ---
@@ -323,9 +323,9 @@ async function handleBossDungeon(message, client, db) {
         };
 
         // --- 6. Mô phỏng trận chiến ---
-        logger.info('[BOSS_DUNGEON]', `Bắt đầu mô phỏng trận chiến giữa ${userPokemonForBattle.name} (Lv ${userPokemonForBattle.level}) và ${bossPokemonForBattle.name} (Lv ${bossPokemonForBattle.level}).`);
+        logger.pokemon('[BOSS_DUNGEON]', `Bắt đầu mô phỏng trận chiến giữa ${userPokemonForBattle.name} (Lv ${userPokemonForBattle.level}) và ${bossPokemonForBattle.name} (Lv ${bossPokemonForBattle.level}).`);
         const battleResult = await simulateBossBattle(userPokemonForBattle, bossPokemonForBattle, userSkillsData, bossSkillsData);
-        logger.info('[BOSS_DUNGEON]', `Kết quả trận chiến: Người dùng ${battleResult.userWin ? 'THẮNG' : 'THUA'}. HP còn lại của người dùng: ${battleResult.userRemainingHp}, HP còn lại của Boss: ${battleResult.bossRemainingHp}.`);
+        logger.pokemon('[BOSS_DUNGEON]', `Kết quả trận chiến: Người dùng ${battleResult.userWin ? 'THẮNG' : 'THUA'}. HP còn lại của người dùng: ${battleResult.userRemainingHp}, HP còn lại của Boss: ${battleResult.bossRemainingHp}.`);
 
 
         // --- 7. Trao phần thưởng ngẫu nhiên (Item có value NULL) - ĐIỀU KIỆN THEO COOLDOWN ---
@@ -336,13 +336,13 @@ async function handleBossDungeon(message, client, db) {
                 const rewardQuantity = 1; 
                 await addOrUpdateUserItem(userId, randomReward.item_id, rewardQuantity, db);
                 rewardMessage = `Bạn đã nhận được **${rewardQuantity}x ${randomReward.name}**!`;
-                logger.info('[BOSS_DUNGEON]', `Người dùng ${userDisplayName} (${userId}) đã nhận phần thưởng: ${rewardQuantity}x ${randomReward.name}.`);
+                logger.pokemon('[BOSS_DUNGEON]', `Người dùng ${userDisplayName} (${userId}) đã nhận phần thưởng: ${rewardQuantity}x ${randomReward.name}.`);
 
                 // Cập nhật cooldown chỉ khi một phần thưởng đã được trao thành công
                 await db('users')
                     .where('discord_id', userId)
                     .update({ last_boss_dungeon_time: db.fn.now() });
-                logger.info('[BOSS_DUNGEON]', `Đã cập nhật thời gian cooldown phó bản boss cho người dùng ${userId}.`);
+                logger.pokemon('[BOSS_DUNGEON]', `Đã cập nhật thời gian cooldown phó bản boss cho người dùng ${userId}.`);
             } else {
                 rewardMessage = 'Bạn đủ điều kiện nhận thưởng nhưng không tìm thấy vật phẩm nào phù hợp để trao.';
                 logger.warn('[BOSS_DUNGEON_WARN]', `Người dùng ${userDisplayName} (${userId}) đủ điều kiện nhận thưởng nhưng không tìm thấy vật phẩm ngẫu nhiên để trao.`);
@@ -391,7 +391,7 @@ async function handleBossDungeon(message, client, db) {
         }
 
         await message.channel.send({ embeds: [resultEmbed] });
-        logger.info('[BOSS_DUNGEON]', `Đã gửi embed kết quả phó bản boss cho người dùng ${userDisplayName} (${userId}).`);
+        logger.pokemon('[BOSS_DUNGEON]', `Đã gửi embed kết quả phó bản boss cho người dùng ${userDisplayName} (${userId}).`);
 
     } catch (error) {
         logger.error(`[BOSS_DUNGEON_ERROR]`, `Lỗi khi xử lý lệnh boss cho người dùng ${userId}:`, error); // Thay thế console.error

@@ -37,7 +37,7 @@ function loadLanguages(client) {
         try {
             const langData = require(path.join(langPath, file));
             client.languages.set(langCode, langData);
-            logger.info(`[LANG_LOADER]`, `Đã tải ngôn ngữ: ${langCode}.`);
+            logger.info(`[LANG_LOADER]`, `✅Đã tải ngôn ngữ: ${langCode}.`);
         } catch (error) {
             logger.error(`[LANG_LOADER_ERROR]`, `Lỗi khi tải file ngôn ngữ ${file}:`, error);
         }
@@ -58,7 +58,7 @@ function loadLanguages(client) {
         logger.warn("[LANG_LOADER_WARN]", "Không tìm thấy hoặc không tải được ngôn ngữ 'zh-CN'. Một số người dùng có thể không nhận được bản dịch tiếng Trung.");
     }
 
-    logger.info('[LANG_LOADER]', `Hoàn tất tải các file ngôn ngữ. Tổng số ngôn ngữ đã tải: ${client.languages.size}.`);
+    logger.info('[LANG_LOADER]', `✅ Hoàn tất tải các file ngôn ngữ. Tổng số ngôn ngữ đã tải: ${client.languages.size}.`);
 }
 
 module.exports = { loadLanguages };

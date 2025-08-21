@@ -9,6 +9,7 @@ const {
     calculateTrainingExpGained,
     checkAndLevelUpPokemon
 } = require('../utils/core/pokemonLevelingUtils');
+const logger = require('../utils/logger'); // <-- Thêm dòng này
 
 const POKECOINS_PER_MINUTE_TRAINING = 35;
 
@@ -62,8 +63,8 @@ module.exports = {
             trainingPokemon.base_hp = Number(trainingPokemon.base_hp) || 0;
             trainingPokemon.base_attack = Number(trainingPokemon.base_attack) || 0;
             trainingPokemon.base_defense = Number(trainingPokemon.base_defense) || 0;
-            trainingPokemon.base_special_attack = Number(trainingPokemon.base_special_attack) || 0;
-            trainingPokemon.base_special_defense = Number(trainingPokemon.base_special_defense) || 0;
+            trainingPokemon.base_special_attack = Number(trainingPokemon.special_attack) || 0;
+            trainingPokemon.base_special_defense = Number(trainingPokemon.special_defense) || 0;
             trainingPokemon.base_speed = Number(trainingPokemon.base_speed) || 0;
 
             trainingPokemon.hp_iv = Number(trainingPokemon.hp_iv) || 0;
@@ -128,7 +129,8 @@ module.exports = {
                         updated_at: db.fn.now()
                     });
 
-                console.log(`[COLLECT_TRAIN] Người dùng ${userId} đã nhận ${pokecoinsGained} Pokecoin từ huấn luyện. Số dư mới: ${newPokecoins}`);
+                // Chuyển sang logger.pokemon và chỉnh sửa tag
+                logger.pokemon('COLLECT_TRAIN', `Người dùng ${userId} đã nhận ${pokecoinsGained} Pokecoin từ huấn luyện. Số dư mới: ${newPokecoins}`);
 
                 const embed = new EmbedBuilder()
                     .setColor(0x0099FF)
@@ -156,7 +158,8 @@ module.exports = {
             });
 
         } catch (error) {
-            console.error('[COLLECT_TRAIN_COMMAND_ERROR] Lỗi không mong muốn khi thực hiện lệnh collecttrain:', error);
+            // Giữ nguyên logger.error cho lỗi tổng quát của lệnh
+            logger.error('COLLECT_TRAIN_COMMAND_ERROR', 'Lỗi không mong muốn khi thực hiện lệnh collecttrain:', error);
             await message.channel.send({
                 content: `<@${userId}> Đã có lỗi xảy ra khi nhận lại Pokémon. Vui lòng thử lại sau.`,
                 flags: MessageFlags.Ephemeral
