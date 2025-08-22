@@ -1,6 +1,6 @@
 // commands/slash/leaderboard.js
 
-const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
+const { SlashCommandBuilder, EmbedBuilder, MessageFlags } = require('discord.js');
 const { getOrCreateUserProfile, getLevelUpXP, getRoleByLevelAndPath } = require('../../utils/managers/xpManager');
 const { db } = require('../../db/index'); 
 
@@ -10,7 +10,6 @@ module.exports = {
         .setDescription('Xem bảng xếp hạng top 10 người tu luyện trong server.'),
     
     async execute(interaction) {
-        await interaction.deferReply();
 
         const guildId = interaction.guild.id;
         const userId = interaction.user.id;
@@ -95,7 +94,7 @@ module.exports = {
             console.error('[LEADERBOARD_ERROR]', error);
             await interaction.editReply({
                 content: 'Đã có lỗi xảy ra khi lấy bảng xếp hạng. Vui lòng thử lại sau!',
-                ephemeral: true,
+                flags: MessageFlags.Ephemeral 
             });
         }
     },

@@ -25,7 +25,7 @@ module.exports = {
             logger.warn(`[GIVEAWAY_MODAL]`, `Người dùng ${interaction.user.tag} nhập thời gian không hợp lệ: "${durationString}". Chi tiết:`, error.message);
             await interaction.reply({
                 content: '🚫 Thời gian giveaway không hợp lệ. Vui lòng sử dụng định dạng như `10m`, `1h`, `3d`.',
-                flags: MessageFlags.Ephemeral // <-- THAY THẾ ephemeral: true
+                flags: MessageFlags.Ephemeral 
             });
             return;
         }
@@ -37,7 +37,7 @@ module.exports = {
                 logger.warn(`[GIVEAWAY_MODAL]`, `Người dùng ${interaction.user.tag} nhập số người thắng không hợp lệ: "${winnersString}".`);
                 await interaction.reply({
                     content: '🚫 Số lượng người thắng không hợp lệ. Vui lòng nhập một số nguyên dương.',
-                    flags: MessageFlags.Ephemeral // <-- THAY THẾ ephemeral: true
+                    flags: MessageFlags.Ephemeral
                 });
                 return;
             }
@@ -60,7 +60,7 @@ module.exports = {
 
         // --- CÁCH XỬ LÝ PHẢN HỒI MODAL ĐỂ TRÁNH CẢNH BÁO fetchReply VÀ ephemeral ---
         // 1. Gửi một phản hồi "đang xử lý" tạm thời cho interaction
-        await interaction.deferReply({ flags: MessageFlags.Ephemeral }); // <-- THAY THẾ ephemeral: true
+        await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
         // 2. Gửi tin nhắn giveaway chính thức vào kênh
         const giveawayChannel = interaction.channel;
@@ -69,7 +69,7 @@ module.exports = {
         // 3. Chỉnh sửa phản hồi "đang xử lý" ban đầu để thông báo thành công
         await interaction.editReply({
             content: `🎉 Giveaway cho **"${prize}"** đã được tạo thành công! Xem tại ${giveawayMessage.url}`,
-            flags: MessageFlags.Ephemeral // <-- THAY THẾ ephemeral: true
+            flags: MessageFlags.Ephemeral
         });
 
         // Thêm reaction 🎉 vào tin nhắn Giveaway

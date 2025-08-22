@@ -20,7 +20,6 @@ module.exports = {
 
         // THAY ĐỔI: Không sử dụng flags: MessageFlags.Ephemeral ở đây nữa
         // Điều này làm cho phản hồi ban đầu và phản hồi cuối cùng là công khai
-        await interaction.deferReply(); 
 
         if (!OPENWEATHER_API_KEY) {
             console.error('[WEATHER_COMMAND_ERROR] OPENWEATHER_API_KEY không được thiết lập trong .env!');

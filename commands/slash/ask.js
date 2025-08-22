@@ -100,7 +100,6 @@ module.exports = {
                 .setRequired(true)), 
 
     async execute(interaction, client) { 
-        await interaction.deferReply(); 
 
         const userQuestion = interaction.options.getString('prompt'); 
         const user = interaction.user; 

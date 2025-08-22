@@ -51,7 +51,6 @@ module.exports = {
     
     // Xử lý khi lệnh Slash được gọi
     async execute(interaction, client, db) {
-        await interaction.deferReply(); // Gửi phản hồi "đang suy nghĩ..." để tránh timeout
 
         const subcommand = interaction.options.getSubcommand();
 

@@ -1,5 +1,4 @@
 // commands/slash/profile.js
-
 const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
 const { getOrCreateUserProfile, getLevelUpXP, getRoleByLevelAndPath } = require('../../utils/managers/xpManager');
 const { db } = require('../../db/index'); 
@@ -16,7 +15,6 @@ module.exports = {
     
     // Xử lý logic khi lệnh được gọi
     async execute(interaction) {
-        await interaction.deferReply();
 
         const targetUser = interaction.options.getUser('user') || interaction.user;
         const guildId = interaction.guild.id;
@@ -25,14 +23,15 @@ module.exports = {
         const userProfile = await getOrCreateUserProfile(targetUser.id, guildId, db);
         const currentLevel = Number(userProfile.level);
         const currentXP = Number(userProfile.xp);
-        const pathType = userProfile.path_type; // Lấy lối đi tu luyện của người dùng
+        const pathType = userProfile.path_type;
+        const linhThach = Number(userProfile.linh_thach) || 0;
 
         // Tính toán XP cần thiết để lên cấp tiếp theo
         const xpToNextLevel = getLevelUpXP(currentLevel);
         const xpForNextLevel = (currentXP / xpToNextLevel) * 100;
         const progress = Math.min(xpForNextLevel, 100);
 
-        // Tìm vai trò tu luyện hiện tại dựa trên level VÀ path_type
+        // Tìm vai trò tu luyện hiện tại
         const currentRoleConfig = getRoleByLevelAndPath(currentLevel, pathType);
         const currentRealm = currentRoleConfig ? currentRoleConfig.name : 'Vô Danh';
         const roleColor = currentRoleConfig ? currentRoleConfig.color : '#4F46E5';
@@ -53,12 +52,13 @@ module.exports = {
             .addFields(
                 { name: 'Cấp độ', value: `Level **${currentLevel}**`, inline: true },
                 { name: 'Tổng XP', value: `${currentXP} / ${xpToNextLevel}`, inline: true },
+                { name: 'Linh Thạch', value: `<:linh_thach:1408018585846157312> **${linhThach}**`, inline: true },
                 { name: 'Tiến độ', value: `${progressBar} **${progress.toFixed(2)}%**`, inline: false }
             )
             .setFooter({ text: 'Chúc bạn sớm đột phá!' })
             .setTimestamp();
 
-        // Gửi Embed về kênh
+        // Gửi Embed về kênh. Vì đã defer ở handler, dùng editReply()
         await interaction.editReply({ embeds: [profileEmbed] });
     },
 };

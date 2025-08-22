@@ -6,7 +6,7 @@ const path = require('path');
 const fs = require('fs');
 
 // Import cấu hình của bot (đã có sẵn)
-const config = require('./config'); // <-- Dòng này phải nằm ở đây để config được tải sớm
+const config = require('./config'); 
 
 // Import logger mới
 const logger = require('./utils/logger'); 
@@ -19,6 +19,7 @@ const { setupCleanupHandlers } = require('./utils/managers/cleanupManager');
 const { startSpawnManager } = require('./utils/managers/spawnManager');
 const { loadLanguages } = require('./utils/loaders/languageLoader'); 
 const { printCommandTable } = require('./utils/display/commandTablePrinter'); 
+const { startOnlineLinhThachReward } = require('./utils/managers/onlineLinhThachManager'); 
 
 // Khởi tạo Client Discord
 const client = new Client({
@@ -28,12 +29,12 @@ const client = new Client({
         GatewayIntentBits.MessageContent,
         GatewayIntentBits.DirectMessages,
         GatewayIntentBits.GuildMembers, 
-        GatewayIntentBits.GuildPresences,
+        GatewayIntentBits.GuildPresences, 
     ],
 });
 
 // Gán cấu hình bot từ file config.js vào client
-client.config = config; // <-- Gán config đã import vào client.config
+client.config = config; 
 
 // Import và gán instance database
 const { db } = require('./db');
@@ -89,6 +90,8 @@ client.once('ready', async () => {
     setupCleanupHandlers(client, client.db);
     logger.pokemon(`[BOT_CORE]`, `Đã thiết lập Cleanup Handlers.`); 
 
+    startOnlineLinhThachReward(client, client.db); 
+
     // 4. Tải Commands (sử dụng loader hiện có)
     const allCommandStatuses = []; // Mảng tổng hợp trạng thái của tất cả các lệnh
 
@@ -98,7 +101,7 @@ client.once('ready', async () => {
     // Tải các lệnh từ thư mục "commands" (chứa prefix commands)
     if (fs.existsSync(commandsDir)) {
         // Gọi loadCommands với commandsDir (đường dẫn thư mục)
-        allCommandStatuses.push(...loadCommands(client, commandsDir)); // <-- Truyền client vào hàm loadCommands
+        allCommandStatuses.push(...loadCommands(client, commandsDir)); 
     } else {
         logger.warn(`[BOT_CORE_WARN]`, `Thư mục commands không tồn tại: ${commandsDir}`);
     }
@@ -106,7 +109,7 @@ client.once('ready', async () => {
     // Tải các lệnh từ thư mục "slash" (chứa slash commands)
     if (fs.existsSync(slashCommandsDir)) {
         // Gọi loadCommands với slashCommandsDir (đường dẫn thư mục)
-        allCommandStatuses.push(...loadCommands(client, slashCommandsDir)); // <-- Truyền client vào hàm loadCommands
+        allCommandStatuses.push(...loadCommands(client, slashCommandsDir)); 
     } else {
         logger.warn(`[BOT_CORE_WARN]`, `Thư mục Slash Commands không tồn tại: ${slashCommandsDir}`);
     }
