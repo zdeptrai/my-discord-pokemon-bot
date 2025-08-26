@@ -1,5 +1,5 @@
 // commands/slash/help.js
-const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, MessageFlags } = require('discord.js'); // <-- THÊM MessageFlags TẠY ĐÂY
+const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, MessageFlags } = require('discord.js');
 const logger = require('../../utils/logger');
 
 const INVITE_URL = 'https://discord.com/oauth2/authorize?client_id=1388067185574023208&permissions=8&scope=bot%20applications.commands';
@@ -11,17 +11,16 @@ module.exports = {
         .setDescription('Hiển thị thông tin và danh sách các lệnh của bot.'),
 
     async execute(interaction, client, db) {
-        // Lấy IDs của các lệnh từ client.slashCommandIds
-        const helpCommandId = client.slashCommandIds['help'] || 'ID_CHUA_CO';
-        const giveawayCommandId = client.slashCommandIds['giveaway'] || 'ID_CHUA_CO';
-        const imageCommandId = client.slashCommandIds['image'] || 'ID_CHUA_CO';
-        const askCommandId = client.slashCommandIds['ask'] || 'ID_CHUA_CO';
-        const bxhCommandId = client.slashCommandIds['bxh'] || 'ID_CHUA_CO';
-        const profileCommandId = client.slashCommandIds['profile'] || 'ID_CHUA_CO';
-        const weatherCommandId = client.slashCommandIds['weather'] || 'ID_CHUA_CO';
-        const pingCommandId = client.slashCommandIds['ping'] || 'ID_CHUA_CO';
-        const infoCommandId = client.slashCommandIds['info'] || 'ID_CHUA_CO';
-
+        // SỬA CÁC DÒNG NÀY ĐỂ TRUY CẬP VÀO COLLECTION
+        const helpCommandId = client.slashCommandIds.get('help') || 'ID_CHUA_CO';
+        const giveawayCommandId = client.slashCommandIds.get('giveaway') || 'ID_CHUA_CO';
+        const imageCommandId = client.slashCommandIds.get('image') || 'ID_CHUA_CO';
+        const askCommandId = client.slashCommandIds.get('ask') || 'ID_CHUA_CO';
+        const bxhCommandId = client.slashCommandIds.get('bxh') || 'ID_CHUA_CO';
+        const profileCommandId = client.slashCommandIds.get('profile') || 'ID_CHUA_CO';
+        const weatherCommandId = client.slashCommandIds.get('weather') || 'ID_CHUA_CO';
+        const pingCommandId = client.slashCommandIds.get('ping') || 'ID_CHUA_CO';
+        const infoCommandId = client.slashCommandIds.get('info') || 'ID_CHUA_CO';
 
         const helpEmbed = new EmbedBuilder()
             .setTitle(`📚 Hướng dẫn sử dụng ${client.user.username}`)
@@ -71,10 +70,10 @@ module.exports = {
         const actionRow = new ActionRowBuilder()
             .addComponents(inviteButton, supportButton);
 
-        await interaction.reply({
+        await interaction.editReply({
             embeds: [helpEmbed],
             components: [actionRow],
-            flags: 0 // <-- THAY THẾ ephemeral: false bằng flags: 0
+            flags: 0 
         });
 
         logger.info(`[HELP_COMMAND]`, `Người dùng ${interaction.user.tag} đã yêu cầu lệnh /help.`);

@@ -17,7 +17,6 @@ module.exports = {
         ask: true,     // Đặt true để bật, false để tắt
         leaderboard: true, // Ví dụ: lệnh leaderboard đang tắt
         profile: true,
-        girl: true,
         giveaway: true,
         weather: true,
         battle: true,
@@ -52,6 +51,7 @@ module.exports = {
         useitem: true,
         viewskill: true,
         withdraw: true,
+        random: true,
 
     }
 }

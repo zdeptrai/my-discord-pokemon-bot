@@ -5,3 +5,8 @@ sync-dev-db.js
 config.js
 bot-errors.log
 logs/
+delete-commands.js
+gcloud-key.json
+importPokemonData.js
+populateCustomEvolutions.js
+populateEvolutionsFromApi.js
