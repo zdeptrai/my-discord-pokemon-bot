@@ -43,7 +43,7 @@ module.exports = {
                     const userId = interaction.user.id;
                     const guildId = interaction.guild.id;
                     const path = customId.replace('path_', '');
-                    await db('user_profiles').where({ user_id: userId, guild_id: guildId }).update({ path_type: path });
+                    await db('user_profiles').where({ user_id: userId }).update({ path_type: path });
                     const userProfile = await getOrCreateUserProfile(userId, db);
                     const member = await interaction.guild.members.fetch(userId);
                     if (member) {

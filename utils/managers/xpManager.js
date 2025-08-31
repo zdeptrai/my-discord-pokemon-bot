@@ -74,7 +74,7 @@ async function getOrCreateUserProfile(userId, db) {
             level: 1,
             last_xp_message_time: new Date(),
             linh_thach: 0,
-            path_type: 'tien',
+            path_type: null, // SỬA: Khởi tạo là null để người dùng có thể chọn sau
         }).returning('*');
         profile = insertedRow;
         logger.info('PROFILE_MANAGER', `Đã tạo hồ sơ người dùng mới cho ${userId}.`);
@@ -148,6 +148,15 @@ async function addXPAndCheckLevelUp(message, db) {
         return;
     }
 
+    // THÊM: Nếu người dùng chưa chọn phe, yêu cầu họ chọn và dừng việc tính XP
+    if (!userProfile.path_type) {
+        await message.channel.send({
+            content: `Chào mừng bạn đến với thế giới tu luyện! Để bắt đầu hành trình, bạn cần chọn con đường của mình. Vui lòng sử dụng lệnh \`/start\` để chọn Tiên hoặc Ma!`,
+            ephemeral: true
+        });
+        return; // Dừng việc tính XP cho đến khi họ chọn
+    }
+
     const now = new Date();
     const lastXPTime = userProfile.last_xp_message_time ? new Date(userProfile.last_xp_message_time) : null;
     if (lastXPTime && (now - lastXPTime < XP_COOLDOWN_MS)) {
@@ -199,7 +208,7 @@ async function addXPAndCheckLevelUp(message, db) {
         });
     
     if (leveledUp) {
-        const newRoleConfig = getRoleByLevelAndPath(userProfile.level, userProfile.path_type || 'tien');
+        const newRoleConfig = getRoleByLevelAndPath(userProfile.level, userProfile.path_type);
         const newRealm = newRoleConfig ? newRoleConfig.name : 'Vô Danh';
         
         const embed = new EmbedBuilder()
@@ -223,7 +232,7 @@ async function addXPAndCheckLevelUp(message, db) {
         
         const member = await guild.members.fetch(author.id);
         if (member) {
-            await updateUserRole(member, userProfile.level, userProfile.path_type || 'tien');
+            await updateUserRole(member, userProfile.level, userProfile.path_type);
         } else {
             logger.warn('XP_MANAGER_WARN', `Không tìm thấy thành viên Discord cho ID ${author.id} để cập nhật vai trò.`);
         }

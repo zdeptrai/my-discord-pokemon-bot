@@ -10,3 +10,4 @@ gcloud-key.json
 importPokemonData.js
 populateCustomEvolutions.js
 populateEvolutionsFromApi.js
+sync_images_to_db.js
