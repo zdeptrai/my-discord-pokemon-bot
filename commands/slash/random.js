@@ -1,54 +1,64 @@
 const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
 const { Storage } = require('@google-cloud/storage');
 const path = require('path');
-const logger = require('../../utils/logger'); // Giữ lại logger
+const logger = require('../../utils/logger');
+// ✨ Thêm Knex và sửa lại cách khởi tạo
+const Knex = require('knex');
+const knexConfig = require('../../knexfile');
+const knex = Knex(knexConfig.development);
 
-// Khởi tạo client GCS
-const storage = new Storage({
-    keyFilename: path.join(__dirname, '..', '..', 'gcloud-key.json')
-});
-
-// Tên bucket của bạn
 const bucketName = 'discord-bot-photos';
+let fileNames = []; 
 
-// ✨ Cần cập nhật giá trị này nếu số ảnh thay đổi ✨
-const totalFiles = 825; 
+/**
+ * Tải danh sách tên tệp từ database.
+ * Hàm này chỉ chạy một lần khi bot khởi động.
+ */
+async function loadFilesFromDatabase() {
+    try {
+        const rows = await knex('images').select('name');
+        fileNames = rows.map(row => row.name);
+        logger.info(`Đã tải thành công ${fileNames.length} tên tệp từ database.`);
+    } catch (error) {
+        logger.error('Lỗi khi tải danh sách tệp từ database:', error);
+    }
+}
+
+// Gọi hàm này khi module được tải
+loadFilesFromDatabase();
 
 module.exports = {
-    // Sử dụng SlashCommandBuilder để định nghĩa lệnh
     data: new SlashCommandBuilder()
         .setName('yeuem1doi')
         .setDescription('Lấy một ảnh ngẫu nhiên từ bộ sưu tập của bạn'),
     
-    // Logic của lệnh được đặt trong hàm execute
     async execute(interaction) {
-        // Sử dụng deferReply để bot có thời gian xử lý
+        // Vì bạn đã xử lý deferReply() ở file interactionCreate.js nên không cần ở đây
 
         try {
-            // 1. Tạo một chỉ mục ngẫu nhiên dựa trên tổng số tệp
-            const randomIndex = Math.floor(Math.random() * totalFiles) + 1;
-            
-            // 2. Tạo tên tệp tin dựa trên quy tắc đặt tên của bạn
-            const fileName = `tiensaker-${String(randomIndex).padStart(3, '0')}.jpg`;
+            if (fileNames.length === 0) {
+                await interaction.editReply({ content: 'Bộ sưu tập ảnh đang trống. Vui lòng thử lại sau.' });
+                return;
+            }
 
-            // 3. Truy vấn trực tiếp tệp tin cụ thể đó
-            const file = storage.bucket(bucketName).file(fileName);
-            // Không cần lấy metadata trừ khi bạn cần nó cho việc khác
+            // 1. Chọn một tên tệp ngẫu nhiên từ mảng đã được tải
+            const randomIndex = Math.floor(Math.random() * fileNames.length);
+            const fileName = fileNames[randomIndex];
             
-            // 4. Tạo URL công khai và gửi lên Discord
+            // 2. Tạo URL công khai trực tiếp từ tên tệp đã chọn
             const publicUrl = `https://storage.googleapis.com/${bucketName}/${fileName}`;
+            
+            // 3. Tạo và gửi embed
             const embed = new EmbedBuilder()
                 .setTitle('Một hình ảnh ngẫu nhiên từ demonking')
                 .setImage(publicUrl)
                 .setColor('#0099ff')
                 .setFooter({ text: `Tên tệp: ${fileName}` });
 
-            // Sử dụng editReply thay vì reply sau khi đã defer
             await interaction.editReply({ embeds: [embed] });
 
         } catch (error) {
-            logger.error("Lỗi khi truy cập bucket:", error);
-            // Sử dụng editReply để phản hồi lỗi nếu đã defer
+            logger.error('Lỗi khi xử lý lệnh /yeuem1doi:', error);
             await interaction.editReply({ content: 'Đã xảy ra lỗi khi cố gắng lấy ảnh.', ephemeral: true });
         }
     },
