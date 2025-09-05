@@ -10,8 +10,8 @@ const logger = require('../utils/logger');
 const { addXPAndCheckLevelUp, getOrCreateUserProfile } = require('../utils/managers/xpManager'); 
 const { createPathSelectorEmbed } = require('../utils/ui/pathSelector');
 
-const everyoneEmojis = ['<a:emoji_47:1240253109754789898>', '🎉', '<:OO:1395293183268749373>', '<:batngo:1239113374340481095>', '<:fuck:1394925773407912009>', '<:khongnao:1240313536542937098>', '<:que:1239124477498097694>'];
-const botMentionEmojis = ['<a:emoji_47:1240253109754789898>', '🎉', '<:OO:1395293183268749373>', '<:batngo:1239113374340481095>', '<:fuck:1394925773407912009>', '<:khongnao:1240313536542937098>', '<:que:1239124477498097694>', '👀'];
+const everyoneEmojis = ['<a:emoji_47:1240253109754789898>', '<:z001:1412234455510290564>', '<:OO:1395293183268749373>', '<:batngo:1239113374340481095>', '<:fuck:1394925773407912009>', '<:z002:1412236719331348532>', '<:z004:1412242927828209705>'];
+const botMentionEmojis = ['<a:emoji_47:1240253109754789898>', '<:z001:1412234455510290564>', '<:OO:1395293183268749373>', '<:batngo:1239113374340481095>', '<:fuck:1394925773407912009>', '<:z002:1412236719331348532>', '<:z004:1412242927828209705>'];
 
 async function reactWithEmojis(message, emojis) {
     for (const emoji of emojis) {
